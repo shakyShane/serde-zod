@@ -9,7 +9,8 @@ use zod::*;
 
 use crate::zod::Program;
 use syn::{
-    parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Fields, Meta, NestedMeta,
+    parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, Meta,
+    NestedMeta,
 };
 
 /// Example of user-defined [procedural macro attribute][1].
@@ -76,7 +77,23 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
     e.variants.iter().for_each(|vari| {
         // println!("variant ident: {}", vari.ident);
         match &vari.fields {
-            Fields::Named(_named) => unreachable!("named not yet supported"),
+            Fields::Named(fields_named) => {
+                let mut fields: Vec<zod::Field> = vec![];
+                for field in &fields_named.named {
+                    println!("field {:?}", field.ident);
+                    if let Some(ident) = &field.ident {
+                        fields.push(zod::Field {
+                            ident: ident.to_string(),
+                            ty: String::from("String"),
+                        })
+                    }
+                }
+                let tuv = zod::TaggedUnionVariant {
+                    ident: vari.ident.to_string(),
+                    fields: zod::TaggedUnionFields::Fields(fields),
+                };
+                tu.variants.push(tuv);
+            }
             Fields::Unnamed(_) => unreachable!("unamed not yet supported"),
             Fields::Unit => {
                 let tuv = zod::TaggedUnionVariant {

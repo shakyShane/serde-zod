@@ -50,6 +50,7 @@ impl Print for Vec<Import> {
 impl Print for Vec<Statement> {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         for statement in self {
+            dbg!(statement);
             statement.print(x)?;
         }
         Ok(())
@@ -73,6 +74,13 @@ pub struct TaggedUnionVariant {
 #[derive(Debug)]
 pub enum TaggedUnionFields {
     Unit,
+    Fields(Vec<Field>),
+}
+
+#[derive(Debug)]
+pub struct Field {
+    pub ident: String,
+    pub ty: String,
 }
 
 #[derive(Debug)]
@@ -94,11 +102,22 @@ impl Print for TaggedUnion {
         for x in &self.variants {
             lines.push(format!("    z.object({{"));
             lines.push(format!(
-                "      {}: z.literal({})",
+                "      {}: z.literal({}),",
                 self.tag,
                 quote(&x.ident)
             ));
             // todo: "push other fields"
+
+            match &x.fields {
+                TaggedUnionFields::Unit => {}
+                TaggedUnionFields::Fields(fields) => {
+                    for field in fields {
+                        println!("{}={}", field.ident, field.ty);
+                        lines.push(format!("      {}: {}", field.ident, field.ty));
+                    }
+                }
+            }
+
             lines.push(format!("    }}),"));
         }
         lines.push(format!(r#"  ]);"#));

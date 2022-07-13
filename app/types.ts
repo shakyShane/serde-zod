@@ -3,9 +3,10 @@ import z from "zod";
 export const Gender = z
   .discriminatedUnion("kind", [
     z.object({
-      kind: z.literal("Male")
+      kind: z.literal("Male"),
+      age: String
     }),
     z.object({
-      kind: z.literal("Female")
+      kind: z.literal("Female"),
     }),
   ]);

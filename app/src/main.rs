@@ -9,7 +9,7 @@ pub struct Person {
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum Gender {
-    Male,
+    Male { age: u8 },
     Female,
 }
 
