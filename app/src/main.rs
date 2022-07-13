@@ -1,19 +1,33 @@
 use std::fs;
 
 #[derive(Debug)]
-pub struct Person {
-    pub gender: Gender,
+pub enum Control {
+    Stop,
+    Toggle,
 }
 
 #[serde_zod::my_attribute]
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
-pub enum Gender {
-    Male { age: u8 },
-    Female,
+pub enum Status {
+    Start { elapsed: u64, rem: u64 },
+    Tick { elapsed: u64, rem: u64 },
+    End { result: TimerResult },
+}
+
+#[serde_zod::my_attribute]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum TimerResult {
+    Ended,
+    EndedPrematurely,
 }
 
 fn main() {
-    let lines = vec![Gender::print_imports(), Gender::print_zod()];
-    fs::write("./app/types.ts", lines.join("\n")).expect("can write");
+    let lines = vec![
+        Status::print_imports(),
+        TimerResult::print_zod(),
+        Status::print_zod(),
+    ];
+    fs::write("./app/types.ts", lines.join("\n\n")).expect("can write");
 }

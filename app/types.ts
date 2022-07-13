@@ -1,12 +1,30 @@
 import z from "zod";
 
-export const Gender = z
+
+export const TimerResult = z
   .discriminatedUnion("kind", [
     z.object({
-      kind: z.literal("Male"),
-      age: String
+      kind: z.literal("Ended"),
     }),
     z.object({
-      kind: z.literal("Female"),
+      kind: z.literal("EndedPrematurely"),
+    }),
+  ]);
+
+export const Status = z
+  .discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("Start"),
+      elapsed: z.number(),
+      rem: z.number(),
+    }),
+    z.object({
+      kind: z.literal("Tick"),
+      elapsed: z.number(),
+      rem: z.number(),
+    }),
+    z.object({
+      kind: z.literal("End"),
+      result: TimerResult,
     }),
   ]);

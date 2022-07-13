@@ -1,6 +1,6 @@
 use super::*;
 
-use std::fmt::Write;
+use std::fmt::{Formatter, Write};
 
 #[derive(Debug)]
 pub enum Statement {
@@ -50,7 +50,6 @@ impl Print for Vec<Import> {
 impl Print for Vec<Statement> {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         for statement in self {
-            dbg!(statement);
             statement.print(x)?;
         }
         Ok(())
@@ -80,7 +79,39 @@ pub enum TaggedUnionFields {
 #[derive(Debug)]
 pub struct Field {
     pub ident: String,
-    pub ty: String,
+    pub ty: Ty,
+}
+
+#[derive(Debug)]
+pub enum Ty {
+    ZodNumber,
+    ZodString,
+    Reference(String),
+}
+
+impl std::fmt::Display for Ty {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut as_zod = String::new();
+        self.print(&mut as_zod)?;
+        let named = match self {
+            Ty::ZodNumber => "Ty::ZodNumber",
+            Ty::ZodString => "Ty::ZodString",
+            Ty::Reference(_) => "Ty::Reference",
+        };
+        writeln!(f, "{}", named)?;
+        writeln!(f, "\t{}", as_zod)
+    }
+}
+
+impl Print for Ty {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let res = match self {
+            Ty::ZodNumber => "z.number()",
+            Ty::ZodString => "z.string()",
+            Ty::Reference(raw_ref) => raw_ref,
+        };
+        write!(x, "{}", res)
+    }
 }
 
 #[derive(Debug)]
@@ -92,6 +123,11 @@ pub struct TaggedUnion {
 
 pub trait Print {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error>;
+    fn as_string(&self) -> Result<String, std::fmt::Error> {
+        let mut s = String::new();
+        self.print(&mut s)?;
+        Ok(s)
+    }
 }
 
 impl Print for TaggedUnion {
@@ -106,14 +142,16 @@ impl Print for TaggedUnion {
                 self.tag,
                 quote(&x.ident)
             ));
+
             // todo: "push other fields"
 
             match &x.fields {
                 TaggedUnionFields::Unit => {}
                 TaggedUnionFields::Fields(fields) => {
                     for field in fields {
-                        println!("{}={}", field.ident, field.ty);
-                        lines.push(format!("      {}: {}", field.ident, field.ty));
+                        // println!("{}={}", field.ident, field.ty);
+                        let ty_string = field.ty.as_string()?;
+                        lines.push(format!("      {}: {},", field.ident, ty_string));
                     }
                 }
             }

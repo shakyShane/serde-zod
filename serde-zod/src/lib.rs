@@ -10,7 +10,7 @@ use zod::*;
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, Meta,
-    NestedMeta,
+    NestedMeta, Type,
 };
 
 /// Example of user-defined [procedural macro attribute][1].
@@ -40,6 +40,8 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
+    let impl_ident = input_parsed.ident.clone();
+
     let p = match &input_parsed.data {
         Data::Struct(_) => todo!("Data::Struct"),
         Data::Union(_) => todo!("Data::Union"),
@@ -54,7 +56,7 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let tokens = quote! {
         #input_parsed
-        impl Gender {
+        impl #impl_ident {
             pub fn print_zod() -> String {
                 String::from(#st)
             }
@@ -80,17 +82,17 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
             Fields::Named(fields_named) => {
                 let mut fields: Vec<zod::Field> = vec![];
                 for field in &fields_named.named {
-                    println!("field {:?}", field.ident);
+                    let ty = as_ty(&field).expect("ty");
                     if let Some(ident) = &field.ident {
                         fields.push(zod::Field {
                             ident: ident.to_string(),
-                            ty: String::from("String"),
+                            ty,
                         })
                     }
                 }
                 let tuv = zod::TaggedUnionVariant {
                     ident: vari.ident.to_string(),
-                    fields: zod::TaggedUnionFields::Fields(fields),
+                    fields: TaggedUnionFields::Fields(fields),
                 };
                 tu.variants.push(tuv);
             }
@@ -98,7 +100,7 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
             Fields::Unit => {
                 let tuv = zod::TaggedUnionVariant {
                     ident: vari.ident.to_string(),
-                    fields: zod::TaggedUnionFields::Unit,
+                    fields: TaggedUnionFields::Unit,
                 };
                 tu.variants.push(tuv);
             }
@@ -116,6 +118,64 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
     p.statements
         .push(Statement::Export(Export::TaggedUnion(tu)));
     Ok(p)
+}
+
+fn as_ty(field: &&Field) -> Result<Ty, String> {
+    match &field.ty {
+        Type::Path(p) => {
+            // println!("Type::Path({:?})");
+
+            // is it a raw ident, like 'u8'
+            if let Some(ident) = p.path.get_ident() {
+                return Ok(rust_ident_to_ty(ident.to_string()));
+            }
+
+            return Err("could not get identifier".into());
+        }
+        // Type::Array(_) => {
+        //     println!("Type::Array")
+        // }
+        // Type::BareFn(_) => {
+        //     println!("Type::BareFn")
+        // }
+        // Type::Group(_) => {
+        //     println!("Type::Group")
+        // }
+        // Type::ImplTrait(_) => {
+        //     println!("Type::ImplTrait")
+        // }
+        // Type::Infer(_) => {
+        //     println!("Type::Infer")
+        // }
+        // Type::Macro(_) => {
+        //     println!("Type::Macro")
+        // }
+        // Type::Never(_) => {
+        //     println!("Type::Never")
+        // }
+        // Type::Paren(_) => {
+        //     println!("Type::Paren")
+        // }
+        // Type::Ptr(_) => {
+        //     println!("Type::Ptr")
+        // }
+        // Type::Reference(_) => {
+        //     println!("Type::Reference")
+        // }
+        // Type::Slice(_) => {
+        //     println!("Type::Slice")
+        // }
+        // Type::TraitObject(_) => {
+        //     println!("Type::TraitObject")
+        // }
+        // Type::Tuple(_) => {
+        //     println!("Type::Tuple")
+        // }
+        // Type::Verbatim(ver) => {
+        //     println!("Type::Verbatim")
+        // }
+        _ => Err(String::from("unknown")),
+    }
 }
 
 fn quote<A: AsRef<str>>(a: &A) -> String {
@@ -156,4 +216,14 @@ fn has_serde_derive(attrs: &[Attribute]) -> bool {
             }
             _ => false,
         })
+}
+
+fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
+    println!("{}", raw_ident.as_ref());
+    match raw_ident.as_ref() {
+        "u8" => Ty::ZodNumber,
+        "u64" => Ty::ZodNumber,
+        "String" => Ty::ZodString,
+        ident => Ty::Reference(ident.to_string()),
+    }
 }
