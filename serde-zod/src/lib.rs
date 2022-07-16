@@ -1,12 +1,17 @@
+mod indent;
 mod zod;
 
 extern crate proc_macro;
+use indenter;
+use indenter::Format;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
+use std::fmt::Write;
 
 use quote::quote;
 use zod::*;
 
+use crate::indent::{indent_all_by, indent_by};
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, Meta,
@@ -226,4 +231,25 @@ fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
         "String" => Ty::ZodString,
         ident => Ty::Reference(ident.to_string()),
     }
+}
+
+#[test]
+fn test_indent() {
+    let input = "verify\n\nthis";
+    let mut output = String::new();
+
+    let r = indenter::indented(&mut output)
+        .with_format(Format::Uniform {
+            indentation: "    ",
+        })
+        .write_str(input)
+        .unwrap();
+
+    println!("Before:\n|{}|\n", input);
+    println!("After:\n|{}|", output);
+
+    let lines = vec!["z.literal('here')", "z.literal('there')"];
+    let joined = lines.join(",\n");
+    let width = 4;
+    println!("|{}|", indent_all_by(width, joined));
 }

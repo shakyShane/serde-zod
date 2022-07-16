@@ -19,3 +19,4 @@ proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
 serde = { version = "1.0.139", features = ["serde_derive"] }
 serde_json = "1.0.82"
+indenter = "0.2"

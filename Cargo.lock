@@ -7,8 +7,15 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_zod",
 ]
+
+[[package]]
+name = "indenter"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "337a4939ca808cd4b5ce69d80d4bd50747992bcf93a368ac87663aaf74a7b4fc"
 
 [[package]]
 name = "itoa"
@@ -75,6 +82,7 @@ dependencies = [
 name = "serde_zod"
 version = "0.0.0"
 dependencies = [
+ "indenter",
  "proc-macro2",
  "quote",
  "serde",
