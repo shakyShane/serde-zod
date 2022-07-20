@@ -14,8 +14,8 @@ use zod::*;
 use crate::indent::{indent_all_by, indent_by};
 use crate::zod::Program;
 use syn::{
-    parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields, Meta,
-    NestedMeta, Type,
+    parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields,
+    GenericArgument, Meta, NestedMeta, PathArguments, Type,
 };
 
 /// Example of user-defined [procedural macro attribute][1].
@@ -87,7 +87,7 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
             Fields::Named(fields_named) => {
                 let mut fields: Vec<zod::Field> = vec![];
                 for field in &fields_named.named {
-                    let ty = as_ty(&field).expect("ty");
+                    let ty = as_ty(&field.ty).expect("ty");
                     if let Some(ident) = &field.ident {
                         fields.push(zod::Field {
                             ident: ident.to_string(),
@@ -125,8 +125,8 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
     Ok(p)
 }
 
-fn as_ty(field: &&Field) -> Result<Ty, String> {
-    match &field.ty {
+fn as_ty(ty: &Type) -> Result<Ty, String> {
+    match ty {
         Type::Path(p) => {
             // println!("Type::Path({:?})");
 
@@ -135,11 +135,51 @@ fn as_ty(field: &&Field) -> Result<Ty, String> {
                 return Ok(rust_ident_to_ty(ident.to_string()));
             }
 
+            for x in &p.path.segments {
+                let ident = x.ident.to_string();
+                match &x.arguments {
+                    PathArguments::None => {
+                        println!("none")
+                    }
+                    PathArguments::AngleBracketed(o) => {
+                        for a in &o.args {
+                            match a {
+                                GenericArgument::Lifetime(_) => {
+                                    println!("GenericArgument::Lifetime")
+                                }
+                                GenericArgument::Type(ty) => {
+                                    println!("GenericArgument::Type");
+                                    let r = as_ty(ty);
+                                    if let Ok(zod_ty) = r {
+                                        if ident == "Vec" {
+                                            return Ok(Ty::seq(zod_ty));
+                                        }
+                                    }
+                                }
+                                GenericArgument::Binding(_) => {
+                                    println!("GenericArgument::Binding")
+                                }
+                                GenericArgument::Constraint(_) => {
+                                    println!("GenericArgument::Constraint")
+                                }
+                                GenericArgument::Const(_) => {
+                                    println!("GenericArgument::Const")
+                                }
+                            }
+                        }
+                    }
+                    PathArguments::Parenthesized(_) => {
+                        println!("para")
+                    }
+                }
+            }
+
             return Err("could not get identifier".into());
         }
-        // Type::Array(_) => {
-        //     println!("Type::Array")
-        // }
+        Type::Array(_) => {
+            println!("Type::Array");
+            Ok(zod::Ty::ZodString)
+        }
         // Type::BareFn(_) => {
         //     println!("Type::BareFn")
         // }

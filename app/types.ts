@@ -1,6 +1,16 @@
 import z from "zod";
 
 
+export const Test = z
+  .discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("One"),
+    }),
+    z.object({
+      kind: z.literal("Two"),
+    }),
+  ]);
+
 export const TimerResult = z
   .discriminatedUnion("kind", [
     z.object({
@@ -8,6 +18,11 @@ export const TimerResult = z
     }),
     z.object({
       kind: z.literal("EndedPrematurely"),
+      after: z.number(),
+    }),
+    z.object({
+      kind: z.literal("Other"),
+      items: z.array(z.array(Test)),
     }),
   ]);
 

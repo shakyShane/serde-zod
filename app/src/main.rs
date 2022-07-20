@@ -21,11 +21,21 @@ pub enum Status {
 pub enum TimerResult {
     Ended,
     EndedPrematurely { after: u8 },
+    Other { items: Vec<Vec<Test>> },
+}
+
+#[serde_zod::my_attribute]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum Test {
+    One,
+    Two,
 }
 
 fn main() {
     let lines = vec![
         Status::print_imports(),
+        Test::print_zod(),
         TimerResult::print_zod(),
         Status::print_zod(),
     ];

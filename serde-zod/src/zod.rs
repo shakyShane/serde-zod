@@ -87,16 +87,26 @@ pub enum Ty {
     ZodNumber,
     ZodString,
     Reference(String),
+    Seq(Box<Ty>),
+}
+
+impl Ty {
+    pub fn seq(ty: Ty) -> Self {
+        Self::Seq(Box::new(ty))
+    }
 }
 
 impl std::fmt::Display for Ty {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut as_zod = String::new();
         self.print(&mut as_zod)?;
-        let named = match self {
-            Ty::ZodNumber => "Ty::ZodNumber",
-            Ty::ZodString => "Ty::ZodString",
-            Ty::Reference(_) => "Ty::Reference",
+        let named: String = match self {
+            Ty::ZodNumber => "Ty::ZodNumber".to_string(),
+            Ty::ZodString => "Ty::ZodString".to_string(),
+            Ty::Reference(_) => "Ty::Reference".to_string(),
+            Ty::Seq(inner) => {
+                format!("Ty::Seq({})", inner)
+            }
         };
         writeln!(f, "{}", named)?;
         writeln!(f, "\t{}", as_zod)
@@ -106,9 +116,10 @@ impl std::fmt::Display for Ty {
 impl Print for Ty {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let res = match self {
-            Ty::ZodNumber => "z.number()",
-            Ty::ZodString => "z.string()",
-            Ty::Reference(raw_ref) => raw_ref,
+            Ty::ZodNumber => "z.number()".to_string(),
+            Ty::ZodString => "z.string()".to_string(),
+            Ty::Reference(raw_ref) => raw_ref.to_string(),
+            Ty::Seq(inner) => format!("z.array({})", inner.as_string().expect("local type")),
         };
         write!(x, "{}", res)
     }
