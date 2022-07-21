@@ -9,12 +9,13 @@ use proc_macro2::{Ident, Span};
 use std::fmt::Write;
 
 use quote::quote;
+use serde_json::ser::State;
 use zod::*;
 
 use crate::indent::{indent_all_by, indent_by};
 use crate::zod::Program;
 use syn::{
-    parse_macro_input, Attribute, Data, DataEnum, DeriveInput, Error, Field, Fields,
+    parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Field, Fields,
     GenericArgument, Meta, NestedMeta, PathArguments, Type,
 };
 
@@ -36,24 +37,39 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    if serde_attr.is_empty() {
-        return Error::new(
-            Span::call_site(),
-            "must derive serde::Serialize or serde::Deserialize",
-        )
-        .to_compile_error()
-        .into();
-    }
+    // if serde_attr.is_empty() {
+    //     return Error::new(Span::call_site(), "must contain serde attrs")
+    //         .to_compile_error()
+    //         .into();
+    // }
 
     let impl_ident = input_parsed.ident.clone();
 
-    let p = match &input_parsed.data {
-        Data::Struct(_) => todo!("Data::Struct"),
+    let statements: Result<Vec<Statement>, _> = match &input_parsed.data {
+        Data::Struct(st) => process_struct(&input_parsed.ident, st),
         Data::Union(_) => todo!("Data::Union"),
         Data::Enum(e) => process_tagged_enum(&input_parsed.ident, e, "kind"),
     };
 
-    let p = p.expect("unwrap program");
+    let statements = match statements {
+        Ok(statements) => statements,
+        Err(e) => {
+            eprintln!("{}", e);
+            return Error::new(Span::call_site(), "Couldn't create statements")
+                .to_compile_error()
+                .into();
+        }
+    };
+
+    let mut p = Program {
+        statements: vec![],
+        imports: vec![],
+    };
+    p.imports.push(zod::Import {
+        ident: "z".into(),
+        path: "zod".into(),
+    });
+    p.statements.extend(statements);
     let mut st = String::new();
     let mut im = String::new();
     p.statements.print(&mut st).expect("printing statements");
@@ -74,7 +90,33 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
     tokens.into()
 }
 
-fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program, std::fmt::Error> {
+fn process_struct(
+    ident: &Ident,
+    data_struct: &DataStruct,
+) -> Result<Vec<Statement>, std::fmt::Error> {
+    let mut ob = zod::Object {
+        ident: ident.to_string(),
+        fields: Default::default(),
+    };
+    for field in &data_struct.fields {
+        let ty = as_ty(&field.ty).expect("ty");
+        if let Some(ident) = &field.ident {
+            ob.fields.push(zod::Field {
+                ident: ident.to_string(),
+                ty,
+            })
+        }
+    }
+    let mut statements = vec![];
+    statements.push(Statement::Export(Export::Object(ob)));
+    Ok(statements)
+}
+
+fn process_tagged_enum(
+    ident: &Ident,
+    e: &DataEnum,
+    tag: &str,
+) -> Result<Vec<Statement>, std::fmt::Error> {
     let mut tu = zod::TaggedUnion {
         ident: ident.to_string(),
         tag: tag.to_string(),
@@ -83,6 +125,7 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
 
     e.variants.iter().for_each(|vari| {
         // println!("variant ident: {}", vari.ident);
+        let variant_ident = vari.ident.to_string();
         match &vari.fields {
             Fields::Named(fields_named) => {
                 let mut fields: Vec<zod::Field> = vec![];
@@ -96,33 +139,26 @@ fn process_tagged_enum(ident: &Ident, e: &DataEnum, tag: &str) -> Result<Program
                     }
                 }
                 let tuv = zod::TaggedUnionVariant {
-                    ident: vari.ident.to_string(),
+                    ident: variant_ident,
                     fields: TaggedUnionFields::Fields(fields),
                 };
                 tu.variants.push(tuv);
             }
-            Fields::Unnamed(_) => unreachable!("unamed not yet supported"),
+            Fields::Unnamed(fields) => {
+                unreachable!("un-named enum fields not yet supported {}", variant_ident);
+            }
             Fields::Unit => {
                 let tuv = zod::TaggedUnionVariant {
-                    ident: vari.ident.to_string(),
+                    ident: variant_ident,
                     fields: TaggedUnionFields::Unit,
                 };
                 tu.variants.push(tuv);
             }
         }
     });
-
-    let mut p = Program {
-        statements: vec![],
-        imports: vec![],
-    };
-    p.imports.push(zod::Import {
-        ident: "z".into(),
-        path: "zod".into(),
-    });
-    p.statements
-        .push(Statement::Export(Export::TaggedUnion(tu)));
-    Ok(p)
+    let mut statements = vec![];
+    statements.push(Statement::Export(Export::TaggedUnion(tu)));
+    Ok(statements)
 }
 
 fn as_ty(ty: &Type) -> Result<Ty, String> {
@@ -263,8 +299,9 @@ fn has_serde_derive(attrs: &[Attribute]) -> bool {
 fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
     println!("{}", raw_ident.as_ref());
     match raw_ident.as_ref() {
-        "u8" => Ty::ZodNumber,
-        "u64" => Ty::ZodNumber,
+        "u8" | "u32" | "u64" | "usize" | "i8" | "i32" | "i64" | "isize" | "f32" | "f64" => {
+            Ty::ZodNumber
+        }
         "String" => Ty::ZodString,
         ident => Ty::Reference(ident.to_string()),
     }

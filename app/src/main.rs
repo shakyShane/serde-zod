@@ -1,3 +1,7 @@
+mod real;
+
+use crate::real::{AllowReason, BlockingState, DetectedRequest};
+use crate::BlockingState::Allowed;
 use std::fs;
 
 #[serde_zod::my_attribute]
@@ -39,11 +43,13 @@ pub enum Test {
 
 fn main() {
     let lines = vec![
-        Status::print_imports(),
-        Test::print_zod(),
-        Control::print_zod(),
-        TimerResult::print_zod(),
-        Status::print_zod(),
+        DetectedRequest::print_imports(),
+        AllowReason::print_zod(),
+        BlockingState::print_zod(),
+        DetectedRequest::print_zod(),
+        // Control::print_zod(),
+        // TimerResult::print_zod(),
+        // Status::print_zod(),
     ];
     fs::write("./app/types.ts", lines.join("\n\n")).expect("can write");
 }

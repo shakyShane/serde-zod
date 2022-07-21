@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 
 use std::fmt::{Formatter, Write};
 
@@ -11,6 +12,7 @@ impl Print for Statement {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         match self {
             Statement::Export(Export::TaggedUnion(tu)) => tu.print(x),
+            Statement::Export(Export::Object(ob)) => ob.print(x),
         }
     }
 }
@@ -18,6 +20,7 @@ impl Print for Statement {
 #[derive(Debug)]
 pub enum Export {
     TaggedUnion(TaggedUnion),
+    Object(Object),
 }
 
 #[derive(Debug)]
@@ -82,6 +85,13 @@ pub struct Field {
     pub ty: Ty,
 }
 
+impl Print for Field {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let ty_string = self.ty.as_string()?;
+        write!(x, "{}: {}", self.ident, ty_string)
+    }
+}
+
 #[derive(Debug)]
 pub enum Ty {
     ZodNumber,
@@ -143,6 +153,26 @@ pub struct TaggedUnion {
     pub variants: Vec<TaggedUnionVariant>,
 }
 
+#[derive(Debug)]
+pub struct Object {
+    pub ident: String,
+    pub fields: Vec<Field>,
+}
+
+impl Print for Object {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let mut lines = vec![];
+        lines.push(format!("export const {} = z", self.ident));
+        lines.push(format!("    z.object({{"));
+        for field in &self.fields {
+            let output = field.as_string()?;
+            lines.push(format!("      {},", output));
+        }
+        lines.push(format!("    }})"));
+        write!(x, "{}", lines.join("\n"))
+    }
+}
+
 pub trait Print {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error>;
     fn as_string(&self) -> Result<String, std::fmt::Error> {
@@ -171,9 +201,8 @@ impl Print for TaggedUnion {
                 TaggedUnionFields::Unit => {}
                 TaggedUnionFields::Fields(fields) => {
                     for field in fields {
-                        // println!("{}={}", field.ident, field.ty);
-                        let ty_string = field.ty.as_string()?;
-                        lines.push(format!("      {}: {},", field.ident, ty_string));
+                        let output = field.as_string()?;
+                        lines.push(format!("      {},", output));
                     }
                 }
             }

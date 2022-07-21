@@ -1,59 +1,43 @@
 import z from "zod";
 
 
-export const Test = z
+export const AllowReason = z
   .discriminatedUnion("kind", [
     z.object({
-      kind: z.literal("One"),
+      kind: z.literal("ProtectionDisabled"),
     }),
     z.object({
-      kind: z.literal("Two"),
+      kind: z.literal("OwnedByFirstParty"),
+    }),
+    z.object({
+      kind: z.literal("RuleException"),
+    }),
+    z.object({
+      kind: z.literal("AdClickAttribution"),
+    }),
+    z.object({
+      kind: z.literal("OtherThirdPartyRequest"),
     }),
   ]);
 
-export const Control = z
+export const BlockingState = z
   .discriminatedUnion("kind", [
     z.object({
-      kind: z.literal("Stop"),
+      kind: z.literal("Blocked"),
     }),
     z.object({
-      kind: z.literal("Toggle"),
+      kind: z.literal("Allowed"),
+      reason: AllowReason,
     }),
   ]);
 
-export const TimerResult = z
-  .discriminatedUnion("kind", [
+export const DetectedRequest = z
     z.object({
-      kind: z.literal("Ended"),
-    }),
-    z.object({
-      kind: z.literal("EndedPrematurely"),
-      after: z.number(),
-    }),
-    z.object({
-      kind: z.literal("Other"),
-      items: z.array(z.array(Test)),
-    }),
-    z.object({
-      kind: z.literal("WithOptional"),
-      control: Control.optional(),
-    }),
-  ]);
-
-export const Status = z
-  .discriminatedUnion("kind", [
-    z.object({
-      kind: z.literal("Start"),
-      elapsed: z.number(),
-      rem: z.number(),
-    }),
-    z.object({
-      kind: z.literal("Tick"),
-      elapsed: z.number(),
-      rem: z.number(),
-    }),
-    z.object({
-      kind: z.literal("End"),
-      result: TimerResult,
-    }),
-  ]);
+      url: z.string(),
+      state: BlockingState,
+      owner_name: z.string().optional(),
+      entity_name: z.string().optional(),
+      category: z.string().optional(),
+      prevalence: z.number().optional(),
+      page_url: z.string(),
+    })
