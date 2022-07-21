@@ -136,36 +136,26 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
             }
 
             for x in &p.path.segments {
-                let ident = x.ident.to_string();
                 match &x.arguments {
                     PathArguments::None => {
                         println!("none")
                     }
                     PathArguments::AngleBracketed(o) => {
-                        for a in &o.args {
-                            match a {
-                                GenericArgument::Lifetime(_) => {
-                                    println!("GenericArgument::Lifetime")
-                                }
-                                GenericArgument::Type(ty) => {
-                                    println!("GenericArgument::Type");
-                                    let r = as_ty(ty);
-                                    if let Ok(zod_ty) = r {
-                                        if ident == "Vec" {
-                                            return Ok(Ty::seq(zod_ty));
-                                        }
+                        let ident = x.ident.to_string();
+                        let first_arg = o.args.first();
+
+                        match (ident.as_str(), first_arg) {
+                            ("Vec" | "Option", Some(arg1)) => {
+                                if let Ok(inner) = ty_from_generic_argument(arg1) {
+                                    if ident == "Vec" {
+                                        return Ok(Ty::seq(inner));
+                                    }
+                                    if ident == "Option" {
+                                        return Ok(Ty::optional(inner));
                                     }
                                 }
-                                GenericArgument::Binding(_) => {
-                                    println!("GenericArgument::Binding")
-                                }
-                                GenericArgument::Constraint(_) => {
-                                    println!("GenericArgument::Constraint")
-                                }
-                                GenericArgument::Const(_) => {
-                                    println!("GenericArgument::Const")
-                                }
                             }
+                            _a => todo!("support more idents like: {}", ident),
                         }
                     }
                     PathArguments::Parenthesized(_) => {
@@ -220,6 +210,13 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
         //     println!("Type::Verbatim")
         // }
         _ => Err(String::from("unknown")),
+    }
+}
+
+fn ty_from_generic_argument(a: &GenericArgument) -> Result<Ty, String> {
+    match a {
+        GenericArgument::Type(ty) => as_ty(ty),
+        _ => Err("only Types are supported as generic arguments".into()),
     }
 }
 

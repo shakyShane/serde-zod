@@ -11,6 +11,16 @@ export const Test = z
     }),
   ]);
 
+export const Control = z
+  .discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("Stop"),
+    }),
+    z.object({
+      kind: z.literal("Toggle"),
+    }),
+  ]);
+
 export const TimerResult = z
   .discriminatedUnion("kind", [
     z.object({
@@ -23,6 +33,10 @@ export const TimerResult = z
     z.object({
       kind: z.literal("Other"),
       items: z.array(z.array(Test)),
+    }),
+    z.object({
+      kind: z.literal("WithOptional"),
+      control: Control.optional(),
     }),
   ]);
 

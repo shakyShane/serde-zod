@@ -1,6 +1,8 @@
 use std::fs;
 
-#[derive(Debug)]
+#[serde_zod::my_attribute]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "kind")]
 pub enum Control {
     Stop,
     Toggle,
@@ -22,6 +24,7 @@ pub enum TimerResult {
     Ended,
     EndedPrematurely { after: u8 },
     Other { items: Vec<Vec<Test>> },
+    WithOptional { control: Option<Control> },
 }
 
 #[serde_zod::my_attribute]
@@ -32,10 +35,13 @@ pub enum Test {
     Two,
 }
 
+/// -----------------------------
+
 fn main() {
     let lines = vec![
         Status::print_imports(),
         Test::print_zod(),
+        Control::print_zod(),
         TimerResult::print_zod(),
         Status::print_zod(),
     ];
@@ -109,6 +115,20 @@ fn test_untagged_struct() -> Result<(), serde_json::Error> {
         count: u8,
     }
     let json = serde_json::to_string_pretty(&Count { count: 7 })?;
+    let expected = r#"{
+  "count": 7
+}"#;
+    assert_eq!(json, expected);
+    Ok(())
+}
+
+#[test]
+fn test_optional_fields() -> Result<(), serde_json::Error> {
+    #[derive(Debug, Clone, serde::Serialize)]
+    struct Count {
+        count: Option<u8>,
+    }
+    let json = serde_json::to_string_pretty(&Count { count: None })?;
     let expected = r#"{
   "count": 7
 }"#;

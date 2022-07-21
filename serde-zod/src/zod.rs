@@ -88,11 +88,15 @@ pub enum Ty {
     ZodString,
     Reference(String),
     Seq(Box<Ty>),
+    Optional(Box<Ty>),
 }
 
 impl Ty {
     pub fn seq(ty: Ty) -> Self {
         Self::Seq(Box::new(ty))
+    }
+    pub fn optional(ty: Ty) -> Self {
+        Self::Optional(Box::new(ty))
     }
 }
 
@@ -107,6 +111,9 @@ impl std::fmt::Display for Ty {
             Ty::Seq(inner) => {
                 format!("Ty::Seq({})", inner)
             }
+            Ty::Optional(inner) => {
+                format!("Ty::Optional({})", inner)
+            }
         };
         writeln!(f, "{}", named)?;
         writeln!(f, "\t{}", as_zod)
@@ -120,6 +127,10 @@ impl Print for Ty {
             Ty::ZodString => "z.string()".to_string(),
             Ty::Reference(raw_ref) => raw_ref.to_string(),
             Ty::Seq(inner) => format!("z.array({})", inner.as_string().expect("local type")),
+            Ty::Optional(inner) => format!(
+                "{}.optional()",
+                inner.as_string().expect("local inner optional type")
+            ),
         };
         write!(x, "{}", res)
     }
