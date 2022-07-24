@@ -2,20 +2,18 @@ mod indent;
 mod zod;
 
 extern crate proc_macro;
-use indenter;
-use indenter::Format;
+// use indenter;
+
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use std::fmt::Write;
 
 use quote::quote;
-use serde_json::ser::State;
+
 use zod::*;
 
-use crate::indent::{indent_all_by, indent_by};
 use crate::zod::Program;
 use syn::{
-    parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Field, Fields,
+    parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
     GenericArgument, Meta, NestedMeta, PathArguments, Type,
 };
 
@@ -26,7 +24,7 @@ use syn::{
 pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_parsed = parse_macro_input!(input as DeriveInput);
     let serde_derive = has_serde_derive(&input_parsed.attrs);
-    let serde_attr = serde_attrs(&input_parsed.attrs);
+    let _serde_attr = serde_attrs(&input_parsed.attrs);
 
     if !serde_derive {
         return Error::new(
@@ -107,8 +105,7 @@ fn process_struct(
             })
         }
     }
-    let mut statements = vec![];
-    statements.push(Statement::Export(Export::Object(ob)));
+    let statements = vec![Statement::Export(Export::Object(ob))];
     Ok(statements)
 }
 
@@ -144,7 +141,7 @@ fn process_tagged_enum(
                 };
                 tu.variants.push(tuv);
             }
-            Fields::Unnamed(fields) => {
+            Fields::Unnamed(_fields) => {
                 unreachable!("un-named enum fields not yet supported {}", variant_ident);
             }
             Fields::Unit => {
@@ -156,8 +153,7 @@ fn process_tagged_enum(
             }
         }
     });
-    let mut statements = vec![];
-    statements.push(Statement::Export(Export::TaggedUnion(tu)));
+    let statements = vec![Statement::Export(Export::TaggedUnion(tu))];
     Ok(statements)
 }
 
@@ -200,7 +196,7 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
                 }
             }
 
-            return Err("could not get identifier".into());
+            Err("could not get identifier".into())
         }
         Type::Array(_) => {
             println!("Type::Array");
@@ -312,7 +308,7 @@ fn test_indent() {
     let input = "verify\n\nthis";
     let mut output = String::new();
 
-    let r = indenter::indented(&mut output)
+    let _r = indenter::indented(&mut output)
         .with_format(Format::Uniform {
             indentation: "    ",
         })

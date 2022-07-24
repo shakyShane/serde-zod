@@ -1,5 +1,4 @@
 use super::*;
-use std::collections::HashMap;
 
 use std::fmt::{Formatter, Write};
 
@@ -163,12 +162,12 @@ impl Print for Object {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut lines = vec![];
         lines.push(format!("export const {} = z", self.ident));
-        lines.push(format!("    z.object({{"));
+        lines.push("    z.object({".to_string());
         for field in &self.fields {
             let output = field.as_string()?;
             lines.push(format!("      {},", output));
         }
-        lines.push(format!("    }})"));
+        lines.push("    })".to_string());
         write!(x, "{}", lines.join("\n"))
     }
 }
@@ -188,7 +187,7 @@ impl Print for TaggedUnion {
         lines.push(format!("export const {} = z", self.ident));
         lines.push(format!(r#"  .discriminatedUnion("{}", ["#, self.tag));
         for x in &self.variants {
-            lines.push(format!("    z.object({{"));
+            lines.push("    z.object({".to_string());
             lines.push(format!(
                 "      {}: z.literal({}),",
                 self.tag,
@@ -207,9 +206,9 @@ impl Print for TaggedUnion {
                 }
             }
 
-            lines.push(format!("    }}),"));
+            lines.push("    }),".to_string());
         }
-        lines.push(format!(r#"  ]);"#));
+        lines.push("  ]);".to_string());
 
         write!(x, "{}", lines.join("\n"))
     }

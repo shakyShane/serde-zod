@@ -1,7 +1,7 @@
 mod real;
 
 use crate::real::{AllowReason, BlockingState, DetectedRequest};
-use crate::BlockingState::Allowed;
+
 use std::fs;
 
 #[serde_zod::my_attribute]
