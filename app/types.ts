@@ -1,6 +1,5 @@
 import z from "zod";
 
-
 export const AllowReason = z
   .discriminatedUnion("kind", [
     z.object({
@@ -27,7 +26,7 @@ export const BlockingState = z
     }),
     z.object({
       kind: z.literal("Allowed"),
-      reason: AllowReason
+      reason: AllowReason,
     }),
   ]);
 
@@ -40,4 +39,4 @@ export const DetectedRequest = z
     category: z.string().optional(),
     prevalence: z.number().optional(),
     page_url: z.string(),
-})
+  })

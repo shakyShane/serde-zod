@@ -51,7 +51,7 @@ fn main() {
         // TimerResult::print_zod(),
         // Status::print_zod(),
     ];
-    fs::write("./app/types.ts", lines.join("\n\n")).expect("can write");
+    fs::write("./app/types.ts", lines.join("\n")).expect("can write");
 }
 
 #[test]

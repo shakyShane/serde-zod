@@ -1,7 +1,8 @@
 use super::*;
 
-use crate::indent::{indent_all_by, indent_by};
+use crate::indent::{indent_all_by};
 use std::fmt::{Formatter, Write};
+
 
 #[derive(Debug)]
 pub enum Statement {
@@ -161,15 +162,18 @@ pub struct Object {
 
 impl Print for Object {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let mut lines = vec![];
-        lines.push(format!("export const {} = z", self.ident));
-        lines.push(indent_all_by(2, "z.object({"));
+        let mut printer = Printer::new();
+        printer.writeln(format!("export const {} = z", self.ident))?;
+        printer.indent();
+        printer.writeln("z.object({")?;
+        printer.indent();
         for field in &self.fields {
-            let output = format!("{},", field.as_string()?);
-            lines.push(indent_all_by(4, output));
+            printer.line(field.as_string()?);
         }
-        lines.push("})".to_string());
-        write!(x, "{}", lines.join("\n"))
+        printer.join_lines(',')?;
+        printer.dedent();
+        printer.writeln("})")?;
+        write!(x, "{}", printer.dump())
     }
 }
 
@@ -184,32 +188,31 @@ pub trait Print {
 
 impl Print for TaggedUnion {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let mut lines = vec![];
-        lines.push(format!("export const {} = z", self.ident));
-        let export_line = format!(".discriminatedUnion({}, [", quote(&self.tag));
-        lines.push(indent_all_by(2, export_line));
+        let mut printer = Printer::new();
+        printer.writeln(format!("export const {} = z", self.ident))?;
+        printer.indent();
+        printer.writeln(format!(".discriminatedUnion({}, [", quote(&self.tag)))?;
+        printer.indent();
         for x in &self.variants {
-            lines.push(indent_all_by(4, "z.object({".to_string()));
-            let line_item = format!("{}: z.literal({}),", self.tag, quote(&x.ident));
-            lines.push(indent_all_by(6, line_item));
-
-            // todo: "push other fields"
-
+            printer.writeln("z.object({")?;
+            printer.indent();
+            printer.line(format!("{}: z.literal({})", self.tag, quote(&x.ident)));
             match &x.fields {
                 TaggedUnionFields::Unit => {}
                 TaggedUnionFields::Fields(fields) => {
                     for field in fields {
-                        let output = field.as_string()?;
-                        lines.push(indent_all_by(6, output));
+                        printer.line(field.as_string()?);
                     }
                 }
             }
-
-            lines.push("    }),".to_string());
+            printer.join_lines(',')?;
+            printer.dedent();
+            printer.writeln("}),")?;
         }
-        lines.push("  ]);".to_string());
+        printer.dedent();
+        printer.writeln("]);")?;
 
-        write!(x, "{}", lines.join("\n"))
+        write!(x, "{}", printer.dump())
     }
 }
 
@@ -243,37 +246,39 @@ impl Printer {
     pub fn line(&mut self, line: impl Into<String>) {
         self.lines.push(indent_all_by(self.curr, line.into()));
     }
-    pub fn join_lines(&mut self) -> Result<(), std::fmt::Error> {
+    pub fn join_lines(&mut self, join_char: char) -> Result<(), std::fmt::Error> {
+        if self.lines.is_empty() {
+            return Ok(());
+        }
         let indented = self
             .lines
             .iter()
-            .map(|l| format!("{},", l))
-            .collect::<Vec<String>>()
+            .map(|l| format!("{}{}", l, join_char))
+            .collect::<Vec<_>>()
             .join("\n");
         writeln!(self.buffer, "{}", indented)?;
         self.lines.drain(..);
         Ok(())
+    }
+    // move ownership
+    pub fn dump(self) -> String {
+        self.buffer
     }
 }
 
 #[test]
 fn test_printer() -> Result<(), std::fmt::Error> {
     let mut printer = Printer::new();
-    printer.writeln("export const shane = z")?;
+    printer.writeln("export const obj = z")?;
     printer.indent();
     printer.writeln(".object({")?;
     printer.indent();
-    printer.line("age: there");
-    printer.line("age: there");
-    printer.line("age: there");
-    printer.line("age: there");
-    printer.join_lines()?;
+    printer.line("age: z.number()");
+    printer.join_lines(',')?;
+    printer.join_lines(',')?;
     printer.dedent();
     printer.writeln("})")?;
-    // printer.indent();
-    // printer.writeln("here")?;
-    // printer.dedent();
-    // printer.writeln("there")?;
-    println!("{}", printer.buffer);
+    let output = printer.dump();
+    println!("|{}|", output);
     Ok(())
 }
