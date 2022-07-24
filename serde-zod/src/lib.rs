@@ -4,13 +4,16 @@ mod zod;
 extern crate proc_macro;
 // use indenter;
 
+use indenter::Format;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
+use std::fmt::Write;
 
 use quote::quote;
 
 use zod::*;
 
+use crate::indent::indent_all_by;
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
@@ -303,23 +306,30 @@ fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
     }
 }
 
-#[test]
-fn test_indent() {
-    let input = "verify\n\nthis";
-    let mut output = String::new();
-
-    let _r = indenter::indented(&mut output)
-        .with_format(Format::Uniform {
-            indentation: "    ",
-        })
-        .write_str(input)
-        .unwrap();
-
-    println!("Before:\n|{}|\n", input);
-    println!("After:\n|{}|", output);
-
-    let lines = vec!["z.literal('here')", "z.literal('there')"];
-    let joined = lines.join(",\n");
-    let width = 4;
-    println!("|{}|", indent_all_by(width, joined));
-}
+// mod tests {
+//     use super::*;
+//     use crate::indent_all_by;
+//     use indenter::Format;
+//     use std::fmt::Write;
+//
+//     #[test]
+//     fn test_indent() {
+//         let input = "verify\n\nthis";
+//         let mut output = String::new();
+//
+//         let _r = indenter::indented(&mut output)
+//             .with_format(Format::Uniform {
+//                 indentation: "    ",
+//             })
+//             .write_str(input)
+//             .unwrap();
+//
+//         println!("Before:\n|{}|\n", input);
+//         println!("After:\n|{}|", output);
+//
+//         let lines = vec!["z.literal('here')", "z.literal('there')"];
+//         let joined = lines.join(",\n");
+//         let width = 4;
+//         println!("|{}|", indent_all_by(width, joined));
+//     }
+// }

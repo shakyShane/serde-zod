@@ -27,17 +27,17 @@ export const BlockingState = z
     }),
     z.object({
       kind: z.literal("Allowed"),
-      reason: AllowReason,
+      reason: AllowReason
     }),
   ]);
 
 export const DetectedRequest = z
-    z.object({
-      url: z.string(),
-      state: BlockingState,
-      owner_name: z.string().optional(),
-      entity_name: z.string().optional(),
-      category: z.string().optional(),
-      prevalence: z.number().optional(),
-      page_url: z.string(),
-    })
+  z.object({
+    url: z.string(),
+    state: BlockingState,
+    owner_name: z.string().optional(),
+    entity_name: z.string().optional(),
+    category: z.string().optional(),
+    prevalence: z.number().optional(),
+    page_url: z.string(),
+})

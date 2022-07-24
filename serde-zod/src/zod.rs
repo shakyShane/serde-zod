@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::indent::{indent_all_by, indent_by};
 use std::fmt::{Formatter, Write};
 
 #[derive(Debug)]
@@ -162,12 +163,12 @@ impl Print for Object {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut lines = vec![];
         lines.push(format!("export const {} = z", self.ident));
-        lines.push("    z.object({".to_string());
+        lines.push(indent_all_by(2, "z.object({"));
         for field in &self.fields {
-            let output = field.as_string()?;
-            lines.push(format!("      {},", output));
+            let output = format!("{},", field.as_string()?);
+            lines.push(indent_all_by(4, output));
         }
-        lines.push("    })".to_string());
+        lines.push("})".to_string());
         write!(x, "{}", lines.join("\n"))
     }
 }
@@ -185,14 +186,12 @@ impl Print for TaggedUnion {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut lines = vec![];
         lines.push(format!("export const {} = z", self.ident));
-        lines.push(format!(r#"  .discriminatedUnion("{}", ["#, self.tag));
+        let export_line = format!(".discriminatedUnion({}, [", quote(&self.tag));
+        lines.push(indent_all_by(2, export_line));
         for x in &self.variants {
-            lines.push("    z.object({".to_string());
-            lines.push(format!(
-                "      {}: z.literal({}),",
-                self.tag,
-                quote(&x.ident)
-            ));
+            lines.push(indent_all_by(4, "z.object({".to_string()));
+            let line_item = format!("{}: z.literal({}),", self.tag, quote(&x.ident));
+            lines.push(indent_all_by(6, line_item));
 
             // todo: "push other fields"
 
@@ -201,7 +200,7 @@ impl Print for TaggedUnion {
                 TaggedUnionFields::Fields(fields) => {
                     for field in fields {
                         let output = field.as_string()?;
-                        lines.push(format!("      {},", output));
+                        lines.push(indent_all_by(6, output));
                     }
                 }
             }
@@ -212,4 +211,69 @@ impl Print for TaggedUnion {
 
         write!(x, "{}", lines.join("\n"))
     }
+}
+
+struct Printer {
+    lines: Vec<String>,
+    buffer: String,
+    curr: usize,
+    size: usize,
+}
+
+impl Printer {
+    pub fn new() -> Self {
+        Self {
+            lines: vec![],
+            buffer: String::new(),
+            curr: 0,
+            size: 2,
+        }
+    }
+    pub fn indent(&mut self) {
+        self.curr += self.size
+    }
+    pub fn dedent(&mut self) {
+        if self.curr >= self.size {
+            self.curr -= self.size
+        }
+    }
+    pub fn writeln<A: AsRef<str>>(&mut self, p: A) -> Result<(), std::fmt::Error> {
+        writeln!(self.buffer, "{}", indent_all_by(self.curr, p.as_ref()))
+    }
+    pub fn line(&mut self, line: impl Into<String>) {
+        self.lines.push(indent_all_by(self.curr, line.into()));
+    }
+    pub fn join_lines(&mut self) -> Result<(), std::fmt::Error> {
+        let indented = self
+            .lines
+            .iter()
+            .map(|l| format!("{},", l))
+            .collect::<Vec<String>>()
+            .join("\n");
+        writeln!(self.buffer, "{}", indented)?;
+        self.lines.drain(..);
+        Ok(())
+    }
+}
+
+#[test]
+fn test_printer() -> Result<(), std::fmt::Error> {
+    let mut printer = Printer::new();
+    printer.writeln("export const shane = z")?;
+    printer.indent();
+    printer.writeln(".object({")?;
+    printer.indent();
+    printer.line("age: there");
+    printer.line("age: there");
+    printer.line("age: there");
+    printer.line("age: there");
+    printer.join_lines()?;
+    printer.dedent();
+    printer.writeln("})")?;
+    // printer.indent();
+    // printer.writeln("here")?;
+    // printer.dedent();
+    // printer.writeln("there")?;
+    println!("{}", printer.buffer);
+    Ok(())
 }
