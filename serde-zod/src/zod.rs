@@ -1,28 +1,49 @@
 use super::*;
 
-use crate::indent::indent_all_by;
+use crate::indent::{indent_all_by, indent_by};
 use std::fmt::{Formatter, Write};
 
 #[derive(Debug)]
 pub enum Statement {
-    Export(Export),
+    Export(Item),
 }
 
 impl Print for Statement {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        match self {
-            Statement::Export(Export::TaggedUnion(tu)) => tu.print(x),
-            Statement::Export(Export::Object(ob)) => ob.print(x),
-            Statement::Export(Export::Enum(en)) => en.print(x),
-        }
+        let mut printer = Printer::new();
+        let (ident, inner) = match self {
+            Statement::Export(Item::TaggedUnion(tu)) => (&tu.ident, tu.as_string()?),
+            Statement::Export(Item::Object(ob)) => (&ob.ident, ob.as_string()?),
+            Statement::Export(Item::Enum(en)) => (&en.ident, en.as_string()?),
+            Statement::Export(Item::Lit(lit)) => (&lit.lit, lit.as_string()?),
+            Statement::Export(Item::Union(union)) => (&union.ident, union.as_string()?),
+        };
+        printer.writeln(format!("export const {} =", ident))?;
+        printer.indent();
+        printer.write(inner)?;
+        write!(x, "{}", printer.dump())
     }
 }
 
 #[derive(Debug)]
-pub enum Export {
+pub enum Item {
+    Lit(Literal),
     Enum(Enum),
+    Union(Union),
     TaggedUnion(TaggedUnion),
     Object(Object),
+}
+
+impl Print for Item {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        match self {
+            Item::Lit(lit) => lit.print(x),
+            Item::Enum(eenum) => eenum.print(x),
+            Item::TaggedUnion(tu) => tu.print(x),
+            Item::Object(obj) => obj.print(x),
+            Item::Union(uni) => uni.print(x),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -70,9 +91,9 @@ impl Print for Program {
 }
 
 #[derive(Debug)]
-pub struct TaggedUnionVariant {
+pub struct EnumVariant {
     pub ident: String,
-    pub fields: TaggedUnionFields,
+    pub fields: EnumVariantFields,
 }
 
 #[derive(Debug)]
@@ -81,7 +102,7 @@ pub struct UnTaggedUnionVariant {
 }
 
 #[derive(Debug)]
-pub enum TaggedUnionFields {
+pub enum EnumVariantFields {
     Unit,
     Fields(Vec<Field>),
 }
@@ -157,7 +178,35 @@ impl Print for Ty {
 pub struct TaggedUnion {
     pub ident: String,
     pub tag: String,
-    pub variants: Vec<TaggedUnionVariant>,
+    pub variants: Vec<EnumVariant>,
+}
+
+impl Print for TaggedUnion {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let mut printer = Printer::new();
+        printer.writeln(format!("z.discriminatedUnion({}, [", quote(&self.tag)))?;
+        printer.indent();
+        for x in &self.variants {
+            printer.writeln("z.object({")?;
+            printer.indent();
+            printer.line(format!("{}: z.literal({})", self.tag, quote(&x.ident)));
+            match &x.fields {
+                EnumVariantFields::Unit => {}
+                EnumVariantFields::Fields(fields) => {
+                    for field in fields {
+                        printer.line(field.as_string()?);
+                    }
+                }
+            }
+            printer.join_lines(',')?;
+            printer.dedent();
+            printer.writeln("}),")?;
+        }
+        printer.dedent();
+        printer.writeln("])")?;
+
+        write!(x, "{}", printer.dump())
+    }
 }
 
 #[derive(Debug)]
@@ -169,19 +218,82 @@ pub struct Enum {
 impl Print for Enum {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
-        printer.writeln(format!("export const {} = z", self.ident))?;
-        printer.indent();
-        printer.writeln(".enum([")?;
+        printer.writeln("z.enum([")?;
         printer.indent();
         for x in &self.variants {
             printer.line(&quote(&x.ident));
         }
         printer.join_lines(',')?;
         printer.dedent();
-        printer.writeln("]);")?;
-
+        printer.writeln("])")?;
         write!(x, "{}", printer.dump())
     }
+}
+
+#[derive(Debug)]
+pub struct Literal {
+    pub lit: String,
+}
+
+impl Print for Literal {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        write!(x, "z.literal({})", quote(&self.lit))
+    }
+}
+
+#[derive(Debug)]
+pub struct Union {
+    pub ident: String,
+    pub variants: Vec<Item>,
+}
+
+impl Print for Union {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let mut printer = Printer::new();
+        printer.writeln("z.union([")?;
+        printer.indent();
+        for x in &self.variants {
+            printer.line(&x.as_string()?);
+        }
+        printer.join_lines(',')?;
+        printer.dedent();
+        printer.write("])")?;
+        write!(x, "{}", printer.dump())
+    }
+}
+
+#[test]
+fn test_print_union() -> Result<(), std::fmt::Error> {
+    #[derive(Debug, Clone, serde::Serialize)]
+    enum Count {
+        One(String),
+        Two,
+    }
+    let t = Union {
+        ident: String::from("Count"),
+        variants: vec![
+            Item::Lit(Literal { lit: "Two".into() }),
+            Item::Object(Object {
+                ident: "One".into(),
+                fields: vec![Field {
+                    ident: String::from("One"),
+                    ty: Ty::ZodString,
+                }],
+            }),
+        ],
+    };
+    let i = Item::Object(Object {
+        ident: "One".into(),
+        fields: vec![Field {
+            ident: String::from("One"),
+            ty: Ty::ZodString,
+        }],
+    });
+    let s = i.as_string()?;
+    // let litt = Item::Lit(Literal { lit: "Two".into() }).as_string()?;
+    let litt = t.as_string()?;
+    print!("{}", litt);
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -193,8 +305,6 @@ pub struct Object {
 impl Print for Object {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
-        printer.writeln(format!("export const {} = z", self.ident))?;
-        printer.indent();
         printer.writeln("z.object({")?;
         printer.indent();
         for field in &self.fields {
@@ -213,36 +323,6 @@ pub trait Print {
         let mut s = String::new();
         self.print(&mut s)?;
         Ok(s)
-    }
-}
-
-impl Print for TaggedUnion {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let mut printer = Printer::new();
-        printer.writeln(format!("export const {} = z", self.ident))?;
-        printer.indent();
-        printer.writeln(format!(".discriminatedUnion({}, [", quote(&self.tag)))?;
-        printer.indent();
-        for x in &self.variants {
-            printer.writeln("z.object({")?;
-            printer.indent();
-            printer.line(format!("{}: z.literal({})", self.tag, quote(&x.ident)));
-            match &x.fields {
-                TaggedUnionFields::Unit => {}
-                TaggedUnionFields::Fields(fields) => {
-                    for field in fields {
-                        printer.line(field.as_string()?);
-                    }
-                }
-            }
-            printer.join_lines(',')?;
-            printer.dedent();
-            printer.writeln("}),")?;
-        }
-        printer.dedent();
-        printer.writeln("]);")?;
-
-        write!(x, "{}", printer.dump())
     }
 }
 
@@ -273,6 +353,9 @@ impl Printer {
     pub fn writeln<A: AsRef<str>>(&mut self, p: A) -> Result<(), std::fmt::Error> {
         writeln!(self.buffer, "{}", indent_all_by(self.curr, p.as_ref()))
     }
+    pub fn write<A: AsRef<str>>(&mut self, p: A) -> Result<(), std::fmt::Error> {
+        write!(self.buffer, "{}", indent_all_by(self.curr, p.as_ref()))
+    }
     pub fn line(&mut self, line: impl Into<String>) {
         self.lines.push(indent_all_by(self.curr, line.into()));
     }
@@ -283,7 +366,18 @@ impl Printer {
         let indented = self
             .lines
             .iter()
-            .map(|l| format!("{}{}", l, join_char))
+            .map(|l| {
+                let last = &l[l.len() - 1..l.len()];
+                if last == "\n" {
+                    let without = &l[0..l.len() - 1];
+                    format!("{}{}", without, join_char)
+                } else {
+                    format!("{}{}", l, join_char)
+                }
+                // if let Some('\n') = l.chars().last() {
+                // } else {
+                // }
+            })
             .collect::<Vec<_>>()
             .join("\n");
         writeln!(self.buffer, "{}", indented)?;

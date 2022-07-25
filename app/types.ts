@@ -1,16 +1,16 @@
 import z from "zod";
 
-export const AllowReason = z
-  .enum([
+export const AllowReason =
+  z.enum([
     "ProtectionDisabled",
     "OwnedByFirstParty",
     "RuleException",
     "AdClickAttribution",
     "OtherThirdPartyRequest",
-  ]);
+  ])
 
-export const BlockingState = z
-  .discriminatedUnion("kind", [
+export const BlockingState =
+  z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("Blocked"),
     }),
@@ -18,9 +18,9 @@ export const BlockingState = z
       kind: z.literal("Allowed"),
       reason: AllowReason,
     }),
-  ]);
+  ])
 
-export const DetectedRequest = z
+export const DetectedRequest =
   z.object({
     url: z.string(),
     state: BlockingState,
@@ -31,28 +31,28 @@ export const DetectedRequest = z
     page_url: z.string(),
   })
 
-export const Control = z
-  .discriminatedUnion("kind", [
+export const Control =
+  z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("Stop"),
     }),
     z.object({
       kind: z.literal("Toggle"),
     }),
-  ]);
+  ])
 
-export const Test = z
-  .discriminatedUnion("kind", [
+export const Test =
+  z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("One"),
     }),
     z.object({
       kind: z.literal("Two"),
     }),
-  ]);
+  ])
 
-export const TimerResult = z
-  .discriminatedUnion("kind", [
+export const TimerResult =
+  z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("Ended"),
     }),
@@ -68,10 +68,10 @@ export const TimerResult = z
       kind: z.literal("WithOptional"),
       control: Control.optional(),
     }),
-  ]);
+  ])
 
-export const Status = z
-  .discriminatedUnion("kind", [
+export const Status =
+  z.discriminatedUnion("kind", [
     z.object({
       kind: z.literal("Start"),
       elapsed: z.number(),
@@ -86,4 +86,12 @@ export const Status = z
       kind: z.literal("End"),
       result: TimerResult,
     }),
-  ]);
+  ])
+
+export const Count2 =
+  z.union([
+    z.literal("Two"),
+    z.object({
+      One: z.string(),
+    }),
+  ])

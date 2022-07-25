@@ -59,15 +59,17 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
                     Fields::Unit => true,
                     _ => false,
                 });
-                if !all_unit {
-                    return Error::new(
-                        Span::call_site(),
-                        "all fields of an untagged enums must be `unit` type. complex unions not uet supported",
-                    )
-                    .to_compile_error()
-                    .into();
+                if all_unit {
+                    process_untagged_enum(&input_parsed.ident, e)
+                } else {
+                    process_mixed_enum(&input_parsed.ident, e)
+                    // return Error::new(
+                    //     Span::call_site(),
+                    //     "all fields of an untagged enums must be `unit` type. complex unions not uet supported",
+                    // )
+                    // .to_compile_error()
+                    // .into();
                 }
-                process_untagged_enum(&input_parsed.ident, e)
             }
         }
     };
@@ -128,8 +130,26 @@ fn process_struct(
             })
         }
     }
-    let statements = vec![Statement::Export(Export::Object(ob))];
+    let statements = vec![Statement::Export(Item::Object(ob))];
     Ok(statements)
+}
+
+fn process_mixed_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
+    let mut zod_union = zod::Union {
+        ident: ident.to_string(),
+        variants: vec![],
+    };
+    zod_union
+        .variants
+        .push(Item::Lit(Literal { lit: "Two".into() }));
+    zod_union.variants.push(Item::Object(Object {
+        ident: "One".into(),
+        fields: vec![Field {
+            ident: "One".into(),
+            ty: Ty::ZodString,
+        }],
+    }));
+    Ok(vec![Statement::Export(Item::Union(zod_union))])
 }
 
 fn process_untagged_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
@@ -145,7 +165,7 @@ fn process_untagged_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, 
             })
         }
     }
-    let statements = vec![Statement::Export(Export::Enum(zod_enum))];
+    let statements = vec![Statement::Export(Item::Enum(zod_enum))];
     Ok(statements)
 }
 
@@ -175,9 +195,9 @@ fn process_tagged_enum(
                         })
                     }
                 }
-                let tuv = zod::TaggedUnionVariant {
+                let tuv = zod::EnumVariant {
                     ident: variant_ident,
-                    fields: TaggedUnionFields::Fields(fields),
+                    fields: EnumVariantFields::Fields(fields),
                 };
                 tu.variants.push(tuv);
             }
@@ -185,15 +205,15 @@ fn process_tagged_enum(
                 unreachable!("un-named enum fields not yet supported {}", variant_ident);
             }
             Fields::Unit => {
-                let tuv = zod::TaggedUnionVariant {
+                let tuv = zod::EnumVariant {
                     ident: variant_ident,
-                    fields: TaggedUnionFields::Unit,
+                    fields: EnumVariantFields::Unit,
                 };
                 tu.variants.push(tuv);
             }
         }
     });
-    let statements = vec![Statement::Export(Export::TaggedUnion(tu))];
+    let statements = vec![Statement::Export(Item::TaggedUnion(tu))];
     Ok(statements)
 }
 

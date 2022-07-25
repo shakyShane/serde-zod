@@ -27,3 +27,18 @@ pub struct DetectedRequest {
     prevalence: Option<f32>,
     page_url: String,
 }
+
+// #[test]
+// fn test_01() -> Result<(), serde_json::Error> {
+//     #[derive(serde::Serialize)]
+//     struct Request {
+//         state: BlockingState,
+//     };
+//     let r = Request {
+//         state: BlockingState::Allowed(AllowReason::OwnedByFirstParty),
+//     };
+//     let json = serde_json::to_string_pretty(&r)?;
+//
+//     println!("{}", json);
+//     Ok(())
+// }
