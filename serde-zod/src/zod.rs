@@ -1,8 +1,7 @@
 use super::*;
 
-use crate::indent::{indent_all_by};
+use crate::indent::indent_all_by;
 use std::fmt::{Formatter, Write};
-
 
 #[derive(Debug)]
 pub enum Statement {
@@ -14,12 +13,14 @@ impl Print for Statement {
         match self {
             Statement::Export(Export::TaggedUnion(tu)) => tu.print(x),
             Statement::Export(Export::Object(ob)) => ob.print(x),
+            Statement::Export(Export::Enum(en)) => en.print(x),
         }
     }
 }
 
 #[derive(Debug)]
 pub enum Export {
+    Enum(Enum),
     TaggedUnion(TaggedUnion),
     Object(Object),
 }
@@ -72,6 +73,11 @@ impl Print for Program {
 pub struct TaggedUnionVariant {
     pub ident: String,
     pub fields: TaggedUnionFields,
+}
+
+#[derive(Debug)]
+pub struct UnTaggedUnionVariant {
+    pub ident: String,
 }
 
 #[derive(Debug)]
@@ -152,6 +158,30 @@ pub struct TaggedUnion {
     pub ident: String,
     pub tag: String,
     pub variants: Vec<TaggedUnionVariant>,
+}
+
+#[derive(Debug)]
+pub struct Enum {
+    pub ident: String,
+    pub variants: Vec<UnTaggedUnionVariant>,
+}
+
+impl Print for Enum {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        let mut printer = Printer::new();
+        printer.writeln(format!("export const {} = z", self.ident))?;
+        printer.indent();
+        printer.writeln(".enum([")?;
+        printer.indent();
+        for x in &self.variants {
+            printer.line(&quote(&x.ident));
+        }
+        printer.join_lines(',')?;
+        printer.dedent();
+        printer.writeln("]);")?;
+
+        write!(x, "{}", printer.dump())
+    }
 }
 
 #[derive(Debug)]

@@ -8,7 +8,6 @@ pub enum BlockingState {
 
 #[serde_zod::my_attribute]
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
 pub enum AllowReason {
     ProtectionDisabled,
     OwnedByFirstParty,

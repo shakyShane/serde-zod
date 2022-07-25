@@ -155,6 +155,23 @@ fn test_untagged_struct() -> Result<(), serde_json::Error> {
 }
 
 #[test]
+fn test_untagged_enum() -> Result<(), serde_json::Error> {
+    #[serde_zod::my_attribute]
+    #[derive(Debug, Clone, serde::Serialize)]
+    enum Count {
+        One,
+        Two,
+    }
+    let json = serde_json::to_string_pretty(&Count::One)?;
+    let expected = r#""One""#;
+    assert_eq!(json, expected);
+
+    let as_zod = Count::print_zod();
+    println!("{}", as_zod);
+    Ok(())
+}
+
+#[test]
 fn test_optional_fields() -> Result<(), serde_json::Error> {
     #[derive(Debug, Clone, serde::Serialize)]
     struct Count {

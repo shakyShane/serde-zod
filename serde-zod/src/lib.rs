@@ -15,7 +15,7 @@ use zod::*;
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
-    GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
+    GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type, Variant,
 };
 
 /// Example of user-defined [procedural macro attribute][1].
@@ -54,7 +54,20 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
             if let Some(tag) = tag {
                 process_tagged_enum(&input_parsed.ident, e, tag)
             } else {
-                todo!("un-tagged enums are not currently supported!")
+                // when not tagged, all enum members must not have values
+                let all_unit = e.variants.iter().all(|v| match &v.fields {
+                    Fields::Unit => true,
+                    _ => false,
+                });
+                if !all_unit {
+                    return Error::new(
+                        Span::call_site(),
+                        "all fields of an untagged enums must be `unit` type. complex unions not uet supported",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+                process_untagged_enum(&input_parsed.ident, e)
             }
         }
     };
@@ -116,6 +129,23 @@ fn process_struct(
         }
     }
     let statements = vec![Statement::Export(Export::Object(ob))];
+    Ok(statements)
+}
+
+fn process_untagged_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
+    let mut zod_enum = zod::Enum {
+        ident: ident.to_string(),
+        variants: vec![],
+    };
+    for variant in &e.variants {
+        if let Fields::Unit = variant.fields {
+            let variant_ident = variant.ident.to_string();
+            zod_enum.variants.push(UnTaggedUnionVariant {
+                ident: variant_ident,
+            })
+        }
+    }
+    let statements = vec![Statement::Export(Export::Enum(zod_enum))];
     Ok(statements)
 }
 
@@ -259,7 +289,7 @@ fn ty_from_generic_argument(a: &GenericArgument) -> Result<Ty, String> {
     }
 }
 
-fn quote<A: AsRef<str>>(a: &A) -> String {
+fn quote<A: AsRef<str>>(a: A) -> String {
     format!("\"{}\"", a.as_ref())
 }
 
