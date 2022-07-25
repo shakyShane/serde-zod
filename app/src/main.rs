@@ -47,9 +47,10 @@ fn main() {
         AllowReason::print_zod(),
         BlockingState::print_zod(),
         DetectedRequest::print_zod(),
-        // Control::print_zod(),
-        // TimerResult::print_zod(),
-        // Status::print_zod(),
+        Control::print_zod(),
+        Test::print_zod(),
+        TimerResult::print_zod(),
+        Status::print_zod(),
     ];
     fs::write("./app/types.ts", lines.join("\n")).expect("can write");
 }
@@ -99,6 +100,31 @@ fn test_tagged() -> Result<(), serde_json::Error> {
 }
 
 #[test]
+fn test_tagged_with_tag_name() -> Result<(), serde_json::Error> {
+    #[serde_zod::my_attribute]
+    #[derive(Debug, Clone, serde::Serialize)]
+    #[serde(tag = "anything_really")]
+    enum Count {
+        One { count: u8 },
+        Two,
+    }
+    let as_string = Count::print_zod();
+    let expected = r#"export const Count = z
+  .discriminatedUnion("anything_really", [
+    z.object({
+      anything_really: z.literal("One"),
+      count: z.number(),
+    }),
+    z.object({
+      anything_really: z.literal("Two"),
+    }),
+  ]);
+"#;
+    assert_eq!(as_string, expected);
+    Ok(())
+}
+
+#[test]
 fn test_tagged_struct() -> Result<(), serde_json::Error> {
     #[derive(Debug, Clone, serde::Serialize)]
     #[serde(tag = "kind")]
@@ -136,7 +162,7 @@ fn test_optional_fields() -> Result<(), serde_json::Error> {
     }
     let json = serde_json::to_string_pretty(&Count { count: None })?;
     let expected = r#"{
-  "count": 7
+  "count": null
 }"#;
     assert_eq!(json, expected);
     Ok(())

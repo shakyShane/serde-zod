@@ -13,16 +13,6 @@ use std::borrow::Cow;
 /// The first line of the string is not indented so that it can be placed after an introduction
 /// sequence that has already begun the line.
 ///
-/// # Examples
-/// ```rust
-/// assert_eq!(format!("  items: {}", indent::indent_by(2, "[\n  foo,\n  bar,\n]\n")),
-/// "  items: [
-///     foo,
-///     bar,
-///   ]
-/// ")
-/// ```
-///
 /// For the version that also indents the first line, see [indent_all_by].
 pub fn indent_by<'a, S>(number_of_spaces: usize, input: S) -> String
 where
@@ -35,16 +25,6 @@ where
 ///
 /// The first line of the string is not indented so that it can be placed after an introduction
 /// sequence that has already begun the line.
-///
-/// # Examples
-/// ```rust
-/// assert_eq!(format!("items:{}", indent::indent_with("- ", "\nfoo\nbar\n")),
-/// "items:
-/// - foo
-/// - bar
-/// ")
-/// ```
-///
 /// For the version that also indents the first line, see [indent_all_with].
 pub fn indent_with<'a, S, T>(prefix: S, input: T) -> String
 where
@@ -56,16 +36,6 @@ where
 
 /// Indents every line that is not empty by the given number of spaces.
 ///
-/// # Examples
-/// ```rust
-/// assert_eq!(format!("items: [\n{}]\n", indent::indent_all_by(2, "foo,\nbar,\n")),
-/// "items: [
-///   foo,
-///   bar,
-/// ]
-/// ")
-/// ```
-///
 /// For the version that doesn't indent the first line, see [indent_by].
 pub fn indent_all_by<'a, S>(number_of_spaces: usize, input: S) -> String
 where
@@ -75,15 +45,6 @@ where
 }
 
 /// Indents every line that is not empty with the given prefix.
-///
-/// # Examples
-/// ```rust
-/// assert_eq!(format!("items:\n{}", indent::indent_all_with("- ", "foo\nbar\n")),
-/// "items:
-/// - foo
-/// - bar
-/// ")
-/// ```
 ///
 /// For the version that also indents the first line, see [indent_with].
 pub fn indent_all_with<'a, S, T>(prefix: S, input: T) -> String

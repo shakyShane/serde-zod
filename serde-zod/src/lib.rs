@@ -4,20 +4,18 @@ mod zod;
 extern crate proc_macro;
 // use indenter;
 
-
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-
+use std::collections::HashMap;
 
 use quote::quote;
 
 use zod::*;
 
-
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
-    GenericArgument, Meta, NestedMeta, PathArguments, Type,
+    GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
 };
 
 /// Example of user-defined [procedural macro attribute][1].
@@ -27,7 +25,9 @@ use syn::{
 pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_parsed = parse_macro_input!(input as DeriveInput);
     let serde_derive = has_serde_derive(&input_parsed.attrs);
-    let _serde_attr = serde_attrs(&input_parsed.attrs);
+    let serde_attrs = serde_attrs(&input_parsed.attrs);
+
+    // dbg!(&serde_attrs);
 
     if !serde_derive {
         return Error::new(
@@ -49,7 +49,14 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let statements: Result<Vec<Statement>, _> = match &input_parsed.data {
         Data::Struct(st) => process_struct(&input_parsed.ident, st),
         Data::Union(_) => todo!("Data::Union"),
-        Data::Enum(e) => process_tagged_enum(&input_parsed.ident, e, "kind"),
+        Data::Enum(e) => {
+            let tag = serde_attrs.get("tag");
+            if let Some(tag) = tag {
+                process_tagged_enum(&input_parsed.ident, e, tag)
+            } else {
+                todo!("un-tagged enums are not currently supported!")
+            }
+        }
     };
 
     let statements = match statements {
@@ -173,7 +180,7 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
             for x in &p.path.segments {
                 match &x.arguments {
                     PathArguments::None => {
-                        println!("none")
+                        todo!("PathArguments::None")
                     }
                     PathArguments::AngleBracketed(o) => {
                         let ident = x.ident.to_string();
@@ -201,10 +208,7 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
 
             Err("could not get identifier".into())
         }
-        Type::Array(_) => {
-            println!("Type::Array");
-            Ok(zod::Ty::ZodString)
-        }
+        Type::Array(_) => Ok(zod::Ty::ZodString),
         // Type::BareFn(_) => {
         //     println!("Type::BareFn")
         // }
@@ -259,11 +263,41 @@ fn quote<A: AsRef<str>>(a: &A) -> String {
     format!("\"{}\"", a.as_ref())
 }
 
-fn serde_attrs(attrs: &[Attribute]) -> Vec<Attribute> {
+fn serde_attrs(attrs: &[Attribute]) -> HashMap<String, String> {
     attrs
         .iter()
         .filter(|att| att.path.get_ident().filter(|v| *v == "serde").is_some())
-        .cloned()
+        .filter_map(|item| {
+            let parsed = item.parse_meta().expect("parse meta on attribute");
+            match parsed {
+                Meta::Path(_) => None,
+                Meta::List(l) => {
+                    for nested in l.nested {
+                        match nested {
+                            NestedMeta::Meta(meta) => match meta {
+                                Meta::NameValue(MetaNameValue {
+                                    path,
+                                    lit: syn::Lit::Str(str),
+                                    ..
+                                }) => {
+                                    // dbg!(path.get_ident().map(|x| x.to_string()));
+                                    // dbg!(str.value());
+                                    if let Some(ident) = path.get_ident().map(|x| x.to_string()) {
+                                        return Some((ident, str.value().to_string()));
+                                    }
+                                }
+                                _ => todo!("other!"),
+                            },
+                            NestedMeta::Lit(_) => {
+                                todo!("lit")
+                            }
+                        }
+                    }
+                    None
+                }
+                Meta::NameValue(_nv) => None,
+            }
+        })
         .collect()
 }
 
