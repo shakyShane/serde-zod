@@ -17,6 +17,16 @@ Generate Zod definitions from your JSON-serializable types in Rust.
 - [ ] serde rename_field
 - [ ] document all available output types
 
+| rust                                   | zod                              |
+|----------------------------------------|----------------------------------|
+| enum with only unit variants           | z.enum([...])                    |
+| enum with "tagged" variants            | z.discriminatedUnion("tag", ...) |
+| enum with mixed variants               | z.union([...])                   |
+| String                                 | z.string()                       |
+| usize\|u8\|u16\|f32\|f64 etc (numbers) | z.number(123)                    |
+| Option<String>                         | z.string().optional()            |
+| Struct/Enum fields                     | z.object({ ... })                |
+
 ## Basic Usage
 
 Add the `#[serde_zod::codegen]` attribute *above* any existing Rust struct or enum where you
