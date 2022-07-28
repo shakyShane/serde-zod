@@ -27,6 +27,8 @@ Generate Zod definitions from your JSON-serializable types in Rust.
 | Option<String>                         | z.string().optional()            |
 | Struct/Enum fields                     | z.object({ ... })                |
 
+See the [tests](https://github.com/shakyShane/serde-zod/blob/main/app/src/main.rs) for more examples 
+
 ## Basic Usage
 
 Add the `#[serde_zod::codegen]` attribute *above* any existing Rust struct or enum where you
