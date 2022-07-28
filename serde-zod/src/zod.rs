@@ -1,7 +1,9 @@
 use super::*;
 
-use crate::indent::{indent_all_by, indent_by};
+use crate::indent::{indent_all_by};
+use crate::types::union::Union;
 use std::fmt::{Formatter, Write};
+
 
 #[derive(Debug)]
 pub enum Statement {
@@ -104,10 +106,11 @@ pub struct UnTaggedUnionVariant {
 #[derive(Debug)]
 pub enum EnumVariantFields {
     Unit,
-    Fields(Vec<Field>),
+    Named(Vec<Field>),
+    Unnamed(Ty),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
     pub ident: String,
     pub ty: Ty,
@@ -120,9 +123,10 @@ impl Print for Field {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Ty {
     ZodNumber,
+    InlineObject(InlineObject),
     ZodString,
     Reference(String),
     Seq(Box<Ty>),
@@ -152,6 +156,7 @@ impl std::fmt::Display for Ty {
             Ty::Optional(inner) => {
                 format!("Ty::Optional({})", inner)
             }
+            Ty::InlineObject(_) => "Ty::InlineObject(..)".to_string(),
         };
         writeln!(f, "{}", named)?;
         writeln!(f, "\t{}", as_zod)
@@ -169,6 +174,7 @@ impl Print for Ty {
                 "{}.optional()",
                 inner.as_string().expect("local inner optional type")
             ),
+            Ty::InlineObject(fields) => fields.as_string()?,
         };
         write!(x, "{}", res)
     }
@@ -192,10 +198,13 @@ impl Print for TaggedUnion {
             printer.line(format!("{}: z.literal({})", self.tag, quote(&x.ident)));
             match &x.fields {
                 EnumVariantFields::Unit => {}
-                EnumVariantFields::Fields(fields) => {
+                EnumVariantFields::Named(fields) => {
                     for field in fields {
                         printer.line(field.as_string()?);
                     }
+                }
+                EnumVariantFields::Unnamed(_) => {
+                    // not allowed via serde rules
                 }
             }
             printer.join_lines(',')?;
@@ -241,58 +250,49 @@ impl Print for Literal {
     }
 }
 
-#[derive(Debug)]
-pub struct Union {
-    pub ident: String,
-    pub variants: Vec<Item>,
-}
-
-impl Print for Union {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let mut printer = Printer::new();
-        printer.writeln("z.union([")?;
-        printer.indent();
-        for x in &self.variants {
-            printer.line(&x.as_string()?);
-        }
-        printer.join_lines(',')?;
-        printer.dedent();
-        printer.write("])")?;
-        write!(x, "{}", printer.dump())
-    }
-}
-
 #[test]
 fn test_print_union() -> Result<(), std::fmt::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    enum Count {
-        One(String),
-        Two,
-    }
     let t = Union {
         ident: String::from("Count"),
         variants: vec![
-            Item::Lit(Literal { lit: "Two".into() }),
-            Item::Object(Object {
-                ident: "One".into(),
-                fields: vec![Field {
-                    ident: String::from("One"),
-                    ty: Ty::ZodString,
-                }],
-            }),
+            EnumVariant {
+                ident: "Two".into(),
+                fields: EnumVariantFields::Unnamed(Ty::ZodString),
+            },
+            EnumVariant {
+                ident: "TwoOther".into(),
+                fields: EnumVariantFields::Unit,
+            },
+            EnumVariant {
+                ident: "TwoOtherReally".into(),
+                fields: EnumVariantFields::Named(vec![Field {
+                    ident: "named_1".into(),
+                    ty: Ty::ZodNumber,
+                }]),
+            },
+            EnumVariant {
+                ident: "Three".into(),
+                fields: EnumVariantFields::Unnamed(Ty::Optional(Box::new(Ty::ZodString))),
+            },
         ],
     };
-    let i = Item::Object(Object {
-        ident: "One".into(),
-        fields: vec![Field {
-            ident: String::from("One"),
-            ty: Ty::ZodString,
-        }],
-    });
-    let s = i.as_string()?;
+    let expected = r#"z.union([
+  z.object({
+    Two: z.string(),
+  }),
+  z.literal("TwoOther"),
+  z.object({
+    TwoOtherReally: z.object({
+      named_1: z.number(),
+    }),
+  }),
+  z.object({
+    Three: z.string().optional(),
+  }),
+])"#;
     // let litt = Item::Lit(Literal { lit: "Two".into() }).as_string()?;
-    let litt = t.as_string()?;
-    print!("{}", litt);
+    let printed = t.as_string()?;
+    assert_eq!(expected, printed);
     Ok(())
 }
 
@@ -304,17 +304,32 @@ pub struct Object {
 
 impl Print for Object {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let mut printer = Printer::new();
-        printer.writeln("z.object({")?;
-        printer.indent();
-        for field in &self.fields {
-            printer.line(field.as_string()?);
-        }
-        printer.join_lines(',')?;
-        printer.dedent();
-        printer.writeln("})")?;
-        write!(x, "{}", printer.dump())
+        print_obj(&self.fields, x)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct InlineObject {
+    pub fields: Vec<Field>,
+}
+
+impl Print for InlineObject {
+    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+        print_obj(&self.fields, x)
+    }
+}
+
+fn print_obj(fields: &[Field], target: &mut String) -> Result<(), std::fmt::Error> {
+    let mut printer = Printer::new();
+    printer.writeln("z.object({")?;
+    printer.indent();
+    for field in fields {
+        printer.line(field.as_string()?);
+    }
+    printer.join_lines(',')?;
+    printer.dedent();
+    printer.writeln("})")?;
+    write!(target, "{}", printer.dump())
 }
 
 pub trait Print {
@@ -326,7 +341,7 @@ pub trait Print {
     }
 }
 
-struct Printer {
+pub struct Printer {
     lines: Vec<String>,
     buffer: String,
     curr: usize,

@@ -90,8 +90,13 @@ export const Status =
 
 export const Count2 =
   z.union([
-    z.literal("Two"),
+    z.literal("One"),
     z.object({
-      One: z.string(),
+      Two: z.string(),
+    }),
+    z.object({
+      Three: z.object({
+        temp: z.number(),
+      }),
     }),
   ])

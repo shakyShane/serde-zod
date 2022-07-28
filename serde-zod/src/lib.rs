@@ -1,4 +1,6 @@
 mod indent;
+mod printer;
+mod types;
 mod zod;
 
 extern crate proc_macro;
@@ -15,8 +17,9 @@ use zod::*;
 use crate::zod::Program;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
-    GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type, Variant,
+    GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
 };
+use types::union;
 
 /// Example of user-defined [procedural macro attribute][1].
 ///
@@ -135,20 +138,12 @@ fn process_struct(
 }
 
 fn process_mixed_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut zod_union = zod::Union {
+    let mut zod_union = union::Union {
         ident: ident.to_string(),
         variants: vec![],
     };
-    zod_union
-        .variants
-        .push(Item::Lit(Literal { lit: "Two".into() }));
-    zod_union.variants.push(Item::Object(Object {
-        ident: "One".into(),
-        fields: vec![Field {
-            ident: "One".into(),
-            ty: Ty::ZodString,
-        }],
-    }));
+    let variants = extract_variants(e);
+    zod_union.variants.extend(variants);
     Ok(vec![Statement::Export(Item::Union(zod_union))])
 }
 
@@ -179,9 +174,15 @@ fn process_tagged_enum(
         tag: tag.to_string(),
         variants: vec![],
     };
+    let variants = extract_variants(e);
+    tu.variants.extend(variants);
+    let statements = vec![Statement::Export(Item::TaggedUnion(tu))];
+    Ok(statements)
+}
 
+fn extract_variants(e: &DataEnum) -> Vec<EnumVariant> {
+    let mut variants: Vec<EnumVariant> = vec![];
     e.variants.iter().for_each(|vari| {
-        // println!("variant ident: {}", vari.ident);
         let variant_ident = vari.ident.to_string();
         match &vari.fields {
             Fields::Named(fields_named) => {
@@ -197,24 +198,31 @@ fn process_tagged_enum(
                 }
                 let tuv = zod::EnumVariant {
                     ident: variant_ident,
-                    fields: EnumVariantFields::Fields(fields),
+                    fields: EnumVariantFields::Named(fields),
                 };
-                tu.variants.push(tuv);
+                variants.push(tuv);
             }
-            Fields::Unnamed(_fields) => {
-                unreachable!("un-named enum fields not yet supported {}", variant_ident);
+            Fields::Unnamed(fields) => {
+                let first = fields.unnamed.first();
+                if let Some(first) = first {
+                    let ty = as_ty(&first.ty).expect("ty");
+                    let tuv = zod::EnumVariant {
+                        ident: variant_ident,
+                        fields: EnumVariantFields::Unnamed(ty),
+                    };
+                    variants.push(tuv);
+                }
             }
             Fields::Unit => {
                 let tuv = zod::EnumVariant {
                     ident: variant_ident,
                     fields: EnumVariantFields::Unit,
                 };
-                tu.variants.push(tuv);
+                variants.push(tuv);
             }
         }
     });
-    let statements = vec![Statement::Export(Item::TaggedUnion(tu))];
-    Ok(statements)
+    variants
 }
 
 fn as_ty(ty: &Type) -> Result<Ty, String> {
@@ -389,31 +397,3 @@ fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
         ident => Ty::Reference(ident.to_string()),
     }
 }
-
-// mod tests {
-//     use super::*;
-//     use crate::indent_all_by;
-//     use indenter::Format;
-//     use std::fmt::Write;
-//
-//     #[test]
-//     fn test_indent() {
-//         let input = "verify\n\nthis";
-//         let mut output = String::new();
-//
-//         let _r = indenter::indented(&mut output)
-//             .with_format(Format::Uniform {
-//                 indentation: "    ",
-//             })
-//             .write_str(input)
-//             .unwrap();
-//
-//         println!("Before:\n|{}|\n", input);
-//         println!("After:\n|{}|", output);
-//
-//         let lines = vec!["z.literal('here')", "z.literal('there')"];
-//         let joined = lines.join(",\n");
-//         let width = 4;
-//         println!("|{}|", indent_all_by(width, joined));
-//     }
-// }

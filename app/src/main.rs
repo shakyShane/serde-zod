@@ -44,6 +44,7 @@ pub enum Test {
 pub enum Count2 {
     One,
     Two(String),
+    Three { temp: usize },
 }
 
 /// -----------------------------
@@ -186,31 +187,28 @@ fn test_untagged_all_unit_enum() -> Result<(), serde_json::Error> {
 }
 
 #[test]
-fn test_untagged_all_unnamed_enum() -> Result<(), serde_json::Error> {
-    // #[serde_zod::my_attribute]
+fn test_mixed_enum() -> Result<(), serde_json::Error> {
+    #[serde_zod::my_attribute]
     #[derive(Debug, Clone, serde::Serialize)]
     enum Count {
         One(String),
         Two,
+        Three { hello: String },
     }
-    // let json = serde_json::to_string_pretty(&Count::One(String::from("hey!")))?;
-    let json = serde_json::to_string_pretty(&Count::One(String::from("hey!")))?;
-    let expected = r#"{
-  "One": "hey!"
-}"#;
-    assert_eq!(json, expected);
-
-    //     let as_zod = Count::print_zod();
-    //     let expected_ts = r#"export const Count = z.union([
+    // let json = serde_json::to_string_pretty(&Count::Three {
+    //     hello: "yay".into(),
+    // })?;
+    let json = serde_json::to_string_pretty(&Count::One(String::from("yay")))?;
+    println!("{}", json);
+    //   let as_zod = Count::print_zod();
+    //   let expected_ts = r#"export const Count =
+    // z.union([
     //   z.object({
     //     One: z.string(),
     //   }),
-    //   z.object({
-    //     Two: z.number()
-    //   }),
-    // ])
-    // "#;
-    //     assert_eq!(as_zod, expected_ts);
+    //   z.literal("Two"),
+    // ])"#;
+    //   assert_eq!(as_zod, expected_ts);
     Ok(())
 }
 

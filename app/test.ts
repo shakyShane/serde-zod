@@ -1,16 +1,10 @@
-import z from "zod";
-import {BlockingState} from "./types";
+import {Count2, BlockingState} from "./types";
 
 const bs = BlockingState.parse({
   kind: "Allowed",
   reason: "AdClickAttribution"
 });
 
-export const b1 = z.union([
-  z.object({
-    One: z.string(),
-  }),
-  z.literal("Two")
-])
-
-b1.parse("Two");
+Count2.parse("One")
+Count2.parse({Two: "hello...."})
+Count2.parse({Three: { temp: 3 }})
