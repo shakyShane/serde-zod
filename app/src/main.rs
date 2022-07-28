@@ -117,7 +117,7 @@ fn test_tagged_with_tag_name() -> Result<(), serde_json::Error> {
         One { count: u8 },
         Two,
     }
-    let as_string = Count::print_zod();
+    let as_string = Count::codegen();
     let expected = r#"export const Count =
   z.discriminatedUnion("anything_really", [
     z.object({
@@ -175,7 +175,7 @@ fn test_untagged_all_unit_enum() -> Result<(), serde_json::Error> {
     let expected = r#""One""#;
     assert_eq!(json, expected);
 
-    let as_zod = Count::print_zod();
+    let as_zod = Count::codegen();
     let expected_ts = r#"export const Count =
   z.enum([
     "One",
@@ -195,20 +195,20 @@ fn test_mixed_enum() -> Result<(), serde_json::Error> {
         Two,
         Three { hello: String },
     }
-    // let json = serde_json::to_string_pretty(&Count::Three {
-    //     hello: "yay".into(),
-    // })?;
-    let json = serde_json::to_string_pretty(&Count::One(String::from("yay")))?;
-    println!("{}", json);
-    //   let as_zod = Count::print_zod();
-    //   let expected_ts = r#"export const Count =
-    // z.union([
-    //   z.object({
-    //     One: z.string(),
-    //   }),
-    //   z.literal("Two"),
-    // ])"#;
-    //   assert_eq!(as_zod, expected_ts);
+    let as_zod = Count::codegen();
+    let expected_ts = r#"export const Count =
+  z.union([
+    z.object({
+      One: z.string(),
+    }),
+    z.literal("Two"),
+    z.object({
+      Three: z.object({
+        hello: z.string(),
+      }),
+    }),
+  ])"#;
+    assert_eq!(as_zod, expected_ts);
     Ok(())
 }
 
