@@ -1,4 +1,4 @@
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum BlockingState {
@@ -6,7 +6,7 @@ pub enum BlockingState {
     Allowed { reason: AllowReason },
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum AllowReason {
     ProtectionDisabled,
@@ -16,7 +16,7 @@ pub enum AllowReason {
     OtherThirdPartyRequest,
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DetectedRequest {
     url: String,

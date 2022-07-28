@@ -11,13 +11,15 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use zod::*;
 
-use crate::types::zod_enum::EnumUnitVariant;
-use crate::union::{UnionVariant, UnionVariantFields};
+use crate::tagged_union::TaggedUnion;
+use crate::types::zod_enum::{Enum, EnumUnitVariant};
+use crate::union::UnionVariant;
 use crate::zod::Program;
-use crate::Ty::ZodString;
+
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
     GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
@@ -29,12 +31,10 @@ use types::{import, object, tagged_union, union};
 ///
 /// [1]: https://doc.rust-lang.org/reference/procedural-macros.html#attribute-macros
 #[proc_macro_attribute]
-pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn codegen(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input_parsed = parse_macro_input!(input as DeriveInput);
     let serde_derive = has_serde_derive(&input_parsed.attrs);
     let serde_attrs = serde_attrs(&input_parsed.attrs);
-
-    // dbg!(&serde_attrs);
 
     if !serde_derive {
         return Error::new(
@@ -45,28 +45,21 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    // if serde_attr.is_empty() {
-    //     return Error::new(Span::call_site(), "must contain serde attrs")
-    //         .to_compile_error()
-    //         .into();
-    // }
-
     let impl_ident = input_parsed.ident.clone();
 
-    let statements: Result<Vec<Statement>, _> = match &input_parsed.data {
-        Data::Struct(st) => process_struct(&input_parsed.ident, st),
+    let statements: Result<StatementList, _> = match &input_parsed.data {
+        Data::Struct(st) => StatementList::try_from((&input_parsed.ident, st)),
         Data::Union(_) => todo!("Data::Union"),
         Data::Enum(e) => {
             let tag = serde_attrs.get("tag");
             if let Some(tag) = tag {
-                process_tagged_enum(&input_parsed.ident, e, tag)
+                StatementList::try_from((EnumKind::Tagged(tag.clone()), &input_parsed.ident, e))
             } else {
-                // when not tagged, all enum members must not have values
                 let all_unit = e.variants.iter().all(|v| matches!(&v.fields, Fields::Unit));
                 if all_unit {
-                    process_untagged_enum(&input_parsed.ident, e)
+                    StatementList::try_from((EnumKind::UnitOnly, &input_parsed.ident, e))
                 } else {
-                    process_mixed_enum(&input_parsed.ident, e)
+                    StatementList::try_from((EnumKind::Mixed, &input_parsed.ident, e))
                 }
             }
         }
@@ -86,11 +79,13 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
         statements: vec![],
         imports: vec![],
     };
+
     p.imports.push(import::Import {
         ident: "z".into(),
         path: "zod".into(),
     });
-    p.statements.extend(statements);
+
+    p.statements.extend(statements.0);
 
     let mut st = String::new();
     let mut im = String::new();
@@ -101,7 +96,7 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let tokens = quote! {
         #input_parsed
         impl #impl_ident {
-            pub fn print_zod() -> String {
+            pub fn codegen() -> String {
                 String::from(#st)
             }
             pub fn print_imports() -> String {
@@ -144,19 +139,46 @@ fn process_mixed_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std
     Ok(vec![Statement::Export(Item::Union(zod_union))])
 }
 
-fn process_untagged_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut zod_enum = types::zod_enum::Enum {
-        ident: ident.to_string(),
-        variants: vec![],
-    };
-    for variant in &e.variants {
-        if let Fields::Unit = variant.fields {
-            let variant_ident = variant.ident.to_string();
-            zod_enum.variants.push(EnumUnitVariant {
-                ident: variant_ident,
-            })
+enum EnumKind {
+    Tagged(String),
+    UnitOnly,
+    Mixed,
+}
+
+impl TryFrom<(EnumKind, &Ident, &DataEnum)> for StatementList {
+    type Error = std::fmt::Error;
+
+    fn try_from((kind, ident, e_enum): (EnumKind, &Ident, &DataEnum)) -> Result<Self, Self::Error> {
+        match kind {
+            EnumKind::Tagged(tag) => process_tagged_enum(ident, e_enum, &tag),
+            EnumKind::UnitOnly => process_unit_only_enum(ident, e_enum),
+            EnumKind::Mixed => process_mixed_enum(ident, e_enum),
         }
+        .map(StatementList)
     }
+}
+
+impl TryFrom<(&Ident, &DataStruct)> for StatementList {
+    type Error = std::fmt::Error;
+
+    fn try_from((ident, data_struct): (&Ident, &DataStruct)) -> Result<Self, Self::Error> {
+        process_struct(ident, data_struct).map(StatementList)
+    }
+}
+
+fn process_unit_only_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
+    let mut zod_enum = Enum::new(ident.to_string());
+    let variants = e
+        .variants
+        .iter()
+        .filter_map(|variant| match variant.fields {
+            Fields::Unit => Some(EnumUnitVariant {
+                ident: variant.ident.to_string(),
+            }),
+            _ => None,
+        })
+        .collect();
+    zod_enum.add_variants(variants);
     let statements = vec![Statement::Export(Item::Enum(zod_enum))];
     Ok(statements)
 }
@@ -166,67 +188,32 @@ fn process_tagged_enum(
     e: &DataEnum,
     tag: &str,
 ) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut tu = tagged_union::TaggedUnion {
-        ident: ident.to_string(),
-        tag: tag.to_string(),
-        variants: vec![],
-    };
-    let variants = extract_variants(e);
-    tu.variants.extend(variants);
-    let statements = vec![Statement::Export(Item::TaggedUnion(tu))];
+    let mut tagged_union = TaggedUnion::new(ident.to_string(), tag);
+    tagged_union.add_variants(extract_variants(e));
+    let statements = vec![Statement::Export(Item::TaggedUnion(tagged_union))];
     Ok(statements)
 }
 
-fn extract_variants(e: &DataEnum) -> Vec<UnionVariant> {
-    let mut variants: Vec<UnionVariant> = vec![];
-    e.variants.iter().for_each(|vari| {
-        let variant_ident = vari.ident.to_string();
-        match &vari.fields {
-            Fields::Named(fields_named) => {
-                let mut fields: Vec<zod::Field> = vec![];
-                for field in &fields_named.named {
-                    let ty = as_ty(&field.ty).expect("ty");
-                    if let Some(ident) = &field.ident {
-                        fields.push(zod::Field {
-                            ident: ident.to_string(),
-                            ty,
-                        })
-                    }
+fn extract_variants(data_enum: &DataEnum) -> Vec<UnionVariant> {
+    data_enum
+        .variants
+        .iter()
+        .filter_map(|vari| {
+            let ident = vari.ident.to_string();
+            match &vari.fields {
+                Fields::Named(fields_named) => {
+                    UnionVariant::from_syn_fields_named(ident, fields_named)
                 }
-                let tuv = UnionVariant {
-                    ident: variant_ident,
-                    fields: UnionVariantFields::Named(fields),
-                };
-                variants.push(tuv);
+                Fields::Unnamed(fields) => UnionVariant::from_syn_fields_unnamed(ident, fields),
+                Fields::Unit => Some(UnionVariant::from_unit(ident)),
             }
-            Fields::Unnamed(fields) => {
-                let first = fields.unnamed.first();
-                if let Some(first) = first {
-                    let ty = as_ty(&first.ty).expect("ty");
-                    let tuv = UnionVariant {
-                        ident: variant_ident,
-                        fields: UnionVariantFields::Unnamed(ty),
-                    };
-                    variants.push(tuv);
-                }
-            }
-            Fields::Unit => {
-                let tuv = UnionVariant {
-                    ident: variant_ident,
-                    fields: UnionVariantFields::Unit,
-                };
-                variants.push(tuv);
-            }
-        }
-    });
-    variants
+        })
+        .collect()
 }
 
 fn as_ty(ty: &Type) -> Result<Ty, String> {
     match ty {
         Type::Path(p) => {
-            // println!("Type::Path({:?})");
-
             // is it a raw ident, like 'u8'
             if let Some(ident) = p.path.get_ident() {
                 return Ok(rust_ident_to_ty(ident.to_string()));
@@ -263,46 +250,6 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
 
             Err("could not get identifier".into())
         }
-        Type::Array(_) => Ok(ZodString),
-        // Type::BareFn(_) => {
-        //     println!("Type::BareFn")
-        // }
-        // Type::Group(_) => {
-        //     println!("Type::Group")
-        // }
-        // Type::ImplTrait(_) => {
-        //     println!("Type::ImplTrait")
-        // }
-        // Type::Infer(_) => {
-        //     println!("Type::Infer")
-        // }
-        // Type::Macro(_) => {
-        //     println!("Type::Macro")
-        // }
-        // Type::Never(_) => {
-        //     println!("Type::Never")
-        // }
-        // Type::Paren(_) => {
-        //     println!("Type::Paren")
-        // }
-        // Type::Ptr(_) => {
-        //     println!("Type::Ptr")
-        // }
-        // Type::Reference(_) => {
-        //     println!("Type::Reference")
-        // }
-        // Type::Slice(_) => {
-        //     println!("Type::Slice")
-        // }
-        // Type::TraitObject(_) => {
-        //     println!("Type::TraitObject")
-        // }
-        // Type::Tuple(_) => {
-        //     println!("Type::Tuple")
-        // }
-        // Type::Verbatim(ver) => {
-        //     println!("Type::Verbatim")
-        // }
         _ => Err(String::from("unknown")),
     }
 }
@@ -324,34 +271,23 @@ fn serde_attrs(attrs: &[Attribute]) -> HashMap<String, String> {
         .filter(|att| att.path.get_ident().filter(|v| *v == "serde").is_some())
         .filter_map(|item| {
             let parsed = item.parse_meta().expect("parse meta on attribute");
-            match parsed {
-                Meta::Path(_) => None,
-                Meta::List(l) => {
-                    for nested in l.nested {
-                        match nested {
-                            NestedMeta::Meta(meta) => match meta {
-                                Meta::NameValue(MetaNameValue {
-                                    path,
-                                    lit: syn::Lit::Str(str),
-                                    ..
-                                }) => {
-                                    // dbg!(path.get_ident().map(|x| x.to_string()));
-                                    // dbg!(str.value());
-                                    if let Some(ident) = path.get_ident().map(|x| x.to_string()) {
-                                        return Some((ident, str.value()));
-                                    }
-                                }
-                                _ => todo!("other!"),
-                            },
-                            NestedMeta::Lit(_) => {
-                                todo!("lit")
+            if let Meta::List(l) = parsed {
+                for nested in l.nested {
+                    match nested {
+                        NestedMeta::Meta(Meta::NameValue(MetaNameValue {
+                            path,
+                            lit: syn::Lit::Str(str),
+                            ..
+                        })) => {
+                            if let Some(ident) = path.get_ident().map(|x| x.to_string()) {
+                                return Some((ident, str.value()));
                             }
                         }
+                        _ => todo!("?"),
                     }
-                    None
                 }
-                Meta::NameValue(_nv) => None,
             }
+            None
         })
         .collect()
 }

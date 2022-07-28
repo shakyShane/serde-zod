@@ -4,7 +4,7 @@ use crate::real::{AllowReason, BlockingState, DetectedRequest};
 
 use std::fs;
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum Control {
@@ -12,7 +12,7 @@ pub enum Control {
     Toggle,
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum Status {
@@ -21,7 +21,7 @@ pub enum Status {
     End { result: TimerResult },
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum TimerResult {
@@ -31,7 +31,7 @@ pub enum TimerResult {
     WithOptional { control: Option<Control> },
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum Test {
@@ -39,7 +39,7 @@ pub enum Test {
     Two,
 }
 
-#[serde_zod::my_attribute]
+#[serde_zod::codegen]
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum Count2 {
     One,
@@ -52,14 +52,14 @@ pub enum Count2 {
 fn main() {
     let lines = vec![
         DetectedRequest::print_imports(),
-        AllowReason::print_zod(),
-        BlockingState::print_zod(),
-        DetectedRequest::print_zod(),
-        Control::print_zod(),
-        Test::print_zod(),
-        TimerResult::print_zod(),
-        Status::print_zod(),
-        Count2::print_zod(),
+        AllowReason::codegen(),
+        BlockingState::codegen(),
+        DetectedRequest::codegen(),
+        Control::codegen(),
+        Test::codegen(),
+        TimerResult::codegen(),
+        Status::codegen(),
+        Count2::codegen(),
     ];
     fs::write("./app/types.ts", lines.join("\n")).expect("can write");
 }
@@ -110,7 +110,7 @@ fn test_tagged() -> Result<(), serde_json::Error> {
 
 #[test]
 fn test_tagged_with_tag_name() -> Result<(), serde_json::Error> {
-    #[serde_zod::my_attribute]
+    #[serde_zod::codegen]
     #[derive(Debug, Clone, serde::Serialize)]
     #[serde(tag = "anything_really")]
     enum Count {
@@ -165,7 +165,7 @@ fn test_untagged_struct() -> Result<(), serde_json::Error> {
 
 #[test]
 fn test_untagged_all_unit_enum() -> Result<(), serde_json::Error> {
-    #[serde_zod::my_attribute]
+    #[serde_zod::codegen]
     #[derive(Debug, Clone, serde::Serialize)]
     enum Count {
         One,
@@ -188,7 +188,7 @@ fn test_untagged_all_unit_enum() -> Result<(), serde_json::Error> {
 
 #[test]
 fn test_mixed_enum() -> Result<(), serde_json::Error> {
-    #[serde_zod::my_attribute]
+    #[serde_zod::codegen]
     #[derive(Debug, Clone, serde::Serialize)]
     enum Count {
         One(String),

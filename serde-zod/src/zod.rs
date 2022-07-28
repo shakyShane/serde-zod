@@ -13,6 +13,9 @@ pub enum Statement {
     Export(Item),
 }
 
+#[derive(Debug)]
+pub struct StatementList(pub Vec<Statement>);
+
 impl Print for Statement {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
@@ -78,6 +81,21 @@ impl Print for Program {
 pub struct Field {
     pub ident: String,
     pub ty: Ty,
+}
+
+impl Field {
+    pub fn new(ident: impl Into<String>, ty: Ty) -> Self {
+        Self {
+            ident: ident.into(),
+            ty,
+        }
+    }
+    pub fn from_syn_field(field: &syn::Field) -> Option<Self> {
+        match (&field.ident, as_ty(&field.ty).ok()) {
+            (Some(ident), Some(ty)) => Some(Self::new(ident.to_string(), ty)),
+            _ => None,
+        }
+    }
 }
 
 impl Print for Field {

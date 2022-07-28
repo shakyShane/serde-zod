@@ -10,6 +10,19 @@ pub struct TaggedUnion {
     pub variants: Vec<UnionVariant>,
 }
 
+impl TaggedUnion {
+    pub fn new(ident: impl Into<String>, tag: impl Into<String>) -> Self {
+        Self {
+            ident: ident.into(),
+            tag: tag.into(),
+            variants: vec![],
+        }
+    }
+    pub fn add_variants(&mut self, variants: Vec<UnionVariant>) {
+        self.variants.extend(variants);
+    }
+}
+
 impl Print for TaggedUnion {
     fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
