@@ -1,54 +1,12 @@
 mod real;
 
 use crate::real::{AllowReason, BlockingState, DetectedRequest};
-
 use std::fs;
 
-#[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
-pub enum Control {
-    Stop,
-    Toggle,
-}
-
-#[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
-pub enum Status {
-    Start { elapsed: u64, rem: u64 },
-    Tick { elapsed: u64, rem: u64 },
-    End { result: TimerResult },
-}
-
-#[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
-pub enum TimerResult {
-    Ended,
-    EndedPrematurely { after: u8 },
-    Other { items: Vec<Vec<Test>> },
-    WithOptional { control: Option<Control> },
-}
-
-#[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(tag = "kind")]
-pub enum Test {
-    One,
-    Two,
-}
-
-#[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
-pub enum Count2 {
-    One,
-    Two(String),
-    Three { temp: usize },
-}
-
-/// -----------------------------
-
+///
+/// This example shows how you would combine multiple items together
+/// into a single .ts file
+///
 fn main() {
     let lines = vec![
         DetectedRequest::print_imports(),
@@ -59,169 +17,188 @@ fn main() {
         Test::codegen(),
         TimerResult::codegen(),
         Status::codegen(),
-        Count2::codegen(),
+        MixedEnum::codegen(),
+        UnitOnlyEnum::codegen(),
+        State::codegen(),
     ];
     fs::write("./app/types.ts", lines.join("\n")).expect("can write");
 }
 
-#[test]
-fn test_tagged_union() -> Result<(), serde_json::Error> {
-    let s = Status::End {
-        result: TimerResult::EndedPrematurely { after: 2 },
-    };
-    let json = serde_json::to_string_pretty(&s)?;
-    println!("{}", json);
-    Ok(())
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum Control {
+    Start { time: u32 },
+    Stop,
+    Toggle,
 }
 
 #[test]
-fn test_untagged() -> Result<(), serde_json::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    enum Count {
-        One { count: u8 },
-        Two,
-    }
-    let json = serde_json::to_string_pretty(&Count::One { count: 7 })?;
-    let expected = r#"{
-  "One": {
-    "count": 7
-  }
-}"#;
-    assert_eq!(json, expected);
-    Ok(())
-}
-
-#[test]
-fn test_tagged() -> Result<(), serde_json::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    #[serde(tag = "kind")]
-    enum Count {
-        One { count: u8 },
-        Two,
-    }
-    let json = serde_json::to_string_pretty(&Count::One { count: 7 })?;
-    let expected = r#"{
-  "kind": "One",
-  "count": 7
-}"#;
-    assert_eq!(json, expected);
-    Ok(())
-}
-
-#[test]
-fn test_tagged_with_tag_name() -> Result<(), serde_json::Error> {
-    #[serde_zod::codegen]
-    #[derive(Debug, Clone, serde::Serialize)]
-    #[serde(tag = "anything_really")]
-    enum Count {
-        One { count: u8 },
-        Two,
-    }
-    let as_string = Count::codegen();
-    let expected = r#"export const Count =
-  z.discriminatedUnion("anything_really", [
+fn test_control() {
+    let actual = Control::codegen();
+    let expected = r#"export const Control =
+  z.discriminatedUnion("kind", [
     z.object({
-      anything_really: z.literal("One"),
-      count: z.number(),
+      kind: z.literal("Start"),
+      time: z.number(),
     }),
     z.object({
-      anything_really: z.literal("Two"),
+      kind: z.literal("Stop"),
+    }),
+    z.object({
+      kind: z.literal("Toggle"),
     }),
   ])
 "#;
-    assert_eq!(as_string, expected);
-    Ok(())
+    assert_eq!(actual, expected);
+}
+
+#[serde_zod::codegen]
+#[derive(Debug, Clone, serde::Serialize)]
+pub enum UnitOnlyEnum {
+    Stop,
+    Toggle,
+}
+
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+pub struct State {
+    control: UnitOnlyEnum,
 }
 
 #[test]
-fn test_tagged_struct() -> Result<(), serde_json::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    #[serde(tag = "kind")]
-    struct Count {
-        count: u8,
-    }
-    let json = serde_json::to_string_pretty(&Count { count: 7 })?;
-    let expected = r#"{
-  "kind": "Count",
-  "count": 7
-}"#;
-    assert_eq!(json, expected);
-    Ok(())
-}
-
-#[test]
-fn test_untagged_struct() -> Result<(), serde_json::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    struct Count {
-        count: u8,
-    }
-    let json = serde_json::to_string_pretty(&Count { count: 7 })?;
-    let expected = r#"{
-  "count": 7
-}"#;
-    assert_eq!(json, expected);
-    Ok(())
-}
-
-#[test]
-fn test_untagged_all_unit_enum() -> Result<(), serde_json::Error> {
-    #[serde_zod::codegen]
-    #[derive(Debug, Clone, serde::Serialize)]
-    enum Count {
-        One,
-        Two,
-    }
-    let json = serde_json::to_string_pretty(&Count::One)?;
-    let expected = r#""One""#;
-    assert_eq!(json, expected);
-
-    let as_zod = Count::codegen();
-    let expected_ts = r#"export const Count =
+fn test_unit_only_enum() {
+    let actual1 = UnitOnlyEnum::codegen();
+    let actual2 = State::codegen();
+    let joined = vec![actual1, actual2].join("\n");
+    let expected = r#"export const UnitOnlyEnum =
   z.enum([
-    "One",
-    "Two",
+    "Stop",
+    "Toggle",
   ])
+
+export const State =
+  z.object({
+    control: UnitOnlyEnum,
+  })
 "#;
-    assert_eq!(as_zod, expected_ts);
-    Ok(())
+    assert_eq!(joined, expected);
+}
+
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum Status {
+    Start { elapsed: u64, rem: u64 },
+    Tick { elapsed: u64, rem: u64 },
+    End { result: TimerResult },
 }
 
 #[test]
-fn test_mixed_enum() -> Result<(), serde_json::Error> {
-    #[serde_zod::codegen]
-    #[derive(Debug, Clone, serde::Serialize)]
-    enum Count {
-        One(String),
-        Two,
-        Three { hello: String },
-    }
-    let as_zod = Count::codegen();
-    let expected_ts = r#"export const Count =
-  z.union([
+fn test_status() {
+    let actual = Status::codegen();
+    let expected = r#"export const Status =
+  z.discriminatedUnion("kind", [
     z.object({
-      One: z.string(),
+      kind: z.literal("Start"),
+      elapsed: z.number(),
+      rem: z.number(),
     }),
-    z.literal("Two"),
+    z.object({
+      kind: z.literal("Tick"),
+      elapsed: z.number(),
+      rem: z.number(),
+    }),
+    z.object({
+      kind: z.literal("End"),
+      result: TimerResult,
+    }),
+  ])
+"#;
+    assert_eq!(actual, expected);
+}
+
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum TimerResult {
+    Ended,
+    EndedPrematurely { after: u8 },
+    Other { items: Vec<Vec<Test>> },
+    WithOptional { control: Option<Control> },
+}
+
+#[test]
+fn test_timer_result() {
+    let actual = TimerResult::codegen();
+    let expected = r#"export const TimerResult =
+  z.discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("Ended"),
+    }),
+    z.object({
+      kind: z.literal("EndedPrematurely"),
+      after: z.number(),
+    }),
+    z.object({
+      kind: z.literal("Other"),
+      items: z.array(z.array(Test)),
+    }),
+    z.object({
+      kind: z.literal("WithOptional"),
+      control: Control.optional(),
+    }),
+  ])
+"#;
+    assert_eq!(actual, expected);
+}
+
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+#[serde(tag = "kind")]
+pub enum Test {
+    One,
+    Two,
+}
+
+#[test]
+fn test_test() {
+    let actual = Test::codegen();
+    let expected = r#"export const Test =
+  z.discriminatedUnion("kind", [
+    z.object({
+      kind: z.literal("One"),
+    }),
+    z.object({
+      kind: z.literal("Two"),
+    }),
+  ])
+"#;
+    assert_eq!(actual, expected);
+}
+
+#[serde_zod::codegen]
+#[derive(serde::Serialize)]
+pub enum MixedEnum {
+    One,
+    Two(String),
+    Three { temp: usize },
+}
+
+#[test]
+fn test_count_2() {
+    let actual = MixedEnum::codegen();
+    let expected = r#"export const MixedEnum =
+  z.union([
+    z.literal("One"),
+    z.object({
+      Two: z.string(),
+    }),
     z.object({
       Three: z.object({
-        hello: z.string(),
+        temp: z.number(),
       }),
     }),
   ])"#;
-    assert_eq!(as_zod, expected_ts);
-    Ok(())
-}
-
-#[test]
-fn test_optional_fields() -> Result<(), serde_json::Error> {
-    #[derive(Debug, Clone, serde::Serialize)]
-    struct Count {
-        count: Option<u8>,
-    }
-    let json = serde_json::to_string_pretty(&Count { count: None })?;
-    let expected = r#"{
-  "count": null
-}"#;
-    assert_eq!(json, expected);
-    Ok(())
+    assert_eq!(actual, expected);
 }

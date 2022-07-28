@@ -34,6 +34,10 @@ export const DetectedRequest =
 export const Control =
   z.discriminatedUnion("kind", [
     z.object({
+      kind: z.literal("Start"),
+      time: z.number(),
+    }),
+    z.object({
       kind: z.literal("Stop"),
     }),
     z.object({
@@ -88,7 +92,7 @@ export const Status =
     }),
   ])
 
-export const Count2 =
+export const MixedEnum =
   z.union([
     z.literal("One"),
     z.object({
@@ -100,3 +104,13 @@ export const Count2 =
       }),
     }),
   ])
+export const UnitOnlyEnum =
+  z.enum([
+    "Stop",
+    "Toggle",
+  ])
+
+export const State =
+  z.object({
+    control: UnitOnlyEnum,
+  })
