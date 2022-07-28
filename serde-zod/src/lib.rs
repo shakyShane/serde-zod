@@ -6,20 +6,24 @@ mod zod;
 extern crate proc_macro;
 // use indenter;
 
+use crate::printer::Print;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use std::collections::HashMap;
-
 use quote::quote;
+use std::collections::HashMap;
 
 use zod::*;
 
+use crate::types::zod_enum::EnumUnitVariant;
+use crate::union::{UnionVariant, UnionVariantFields};
 use crate::zod::Program;
+use crate::Ty::ZodString;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
     GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
 };
-use types::union;
+use types::ty::Ty;
+use types::{import, object, tagged_union, union};
 
 /// Example of user-defined [procedural macro attribute][1].
 ///
@@ -58,20 +62,11 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
                 process_tagged_enum(&input_parsed.ident, e, tag)
             } else {
                 // when not tagged, all enum members must not have values
-                let all_unit = e.variants.iter().all(|v| match &v.fields {
-                    Fields::Unit => true,
-                    _ => false,
-                });
+                let all_unit = e.variants.iter().all(|v| matches!(&v.fields, Fields::Unit));
                 if all_unit {
                     process_untagged_enum(&input_parsed.ident, e)
                 } else {
                     process_mixed_enum(&input_parsed.ident, e)
-                    // return Error::new(
-                    //     Span::call_site(),
-                    //     "all fields of an untagged enums must be `unit` type. complex unions not uet supported",
-                    // )
-                    // .to_compile_error()
-                    // .into();
                 }
             }
         }
@@ -91,13 +86,15 @@ pub fn my_attribute(_attr: TokenStream, input: TokenStream) -> TokenStream {
         statements: vec![],
         imports: vec![],
     };
-    p.imports.push(zod::Import {
+    p.imports.push(import::Import {
         ident: "z".into(),
         path: "zod".into(),
     });
     p.statements.extend(statements);
+
     let mut st = String::new();
     let mut im = String::new();
+
     p.statements.print(&mut st).expect("printing statements");
     p.imports.print(&mut im).expect("printing imports");
 
@@ -120,7 +117,7 @@ fn process_struct(
     ident: &Ident,
     data_struct: &DataStruct,
 ) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut ob = zod::Object {
+    let mut ob = object::Object {
         ident: ident.to_string(),
         fields: Default::default(),
     };
@@ -148,14 +145,14 @@ fn process_mixed_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std
 }
 
 fn process_untagged_enum(ident: &Ident, e: &DataEnum) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut zod_enum = zod::Enum {
+    let mut zod_enum = types::zod_enum::Enum {
         ident: ident.to_string(),
         variants: vec![],
     };
     for variant in &e.variants {
         if let Fields::Unit = variant.fields {
             let variant_ident = variant.ident.to_string();
-            zod_enum.variants.push(UnTaggedUnionVariant {
+            zod_enum.variants.push(EnumUnitVariant {
                 ident: variant_ident,
             })
         }
@@ -169,7 +166,7 @@ fn process_tagged_enum(
     e: &DataEnum,
     tag: &str,
 ) -> Result<Vec<Statement>, std::fmt::Error> {
-    let mut tu = zod::TaggedUnion {
+    let mut tu = tagged_union::TaggedUnion {
         ident: ident.to_string(),
         tag: tag.to_string(),
         variants: vec![],
@@ -180,8 +177,8 @@ fn process_tagged_enum(
     Ok(statements)
 }
 
-fn extract_variants(e: &DataEnum) -> Vec<EnumVariant> {
-    let mut variants: Vec<EnumVariant> = vec![];
+fn extract_variants(e: &DataEnum) -> Vec<UnionVariant> {
+    let mut variants: Vec<UnionVariant> = vec![];
     e.variants.iter().for_each(|vari| {
         let variant_ident = vari.ident.to_string();
         match &vari.fields {
@@ -196,9 +193,9 @@ fn extract_variants(e: &DataEnum) -> Vec<EnumVariant> {
                         })
                     }
                 }
-                let tuv = zod::EnumVariant {
+                let tuv = UnionVariant {
                     ident: variant_ident,
-                    fields: EnumVariantFields::Named(fields),
+                    fields: UnionVariantFields::Named(fields),
                 };
                 variants.push(tuv);
             }
@@ -206,17 +203,17 @@ fn extract_variants(e: &DataEnum) -> Vec<EnumVariant> {
                 let first = fields.unnamed.first();
                 if let Some(first) = first {
                     let ty = as_ty(&first.ty).expect("ty");
-                    let tuv = zod::EnumVariant {
+                    let tuv = UnionVariant {
                         ident: variant_ident,
-                        fields: EnumVariantFields::Unnamed(ty),
+                        fields: UnionVariantFields::Unnamed(ty),
                     };
                     variants.push(tuv);
                 }
             }
             Fields::Unit => {
-                let tuv = zod::EnumVariant {
+                let tuv = UnionVariant {
                     ident: variant_ident,
-                    fields: EnumVariantFields::Unit,
+                    fields: UnionVariantFields::Unit,
                 };
                 variants.push(tuv);
             }
@@ -266,7 +263,7 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
 
             Err("could not get identifier".into())
         }
-        Type::Array(_) => Ok(zod::Ty::ZodString),
+        Type::Array(_) => Ok(ZodString),
         // Type::BareFn(_) => {
         //     println!("Type::BareFn")
         // }
@@ -341,7 +338,7 @@ fn serde_attrs(attrs: &[Attribute]) -> HashMap<String, String> {
                                     // dbg!(path.get_ident().map(|x| x.to_string()));
                                     // dbg!(str.value());
                                     if let Some(ident) = path.get_ident().map(|x| x.to_string()) {
-                                        return Some((ident, str.value().to_string()));
+                                        return Some((ident, str.value()));
                                     }
                                 }
                                 _ => todo!("other!"),

@@ -1,11 +1,26 @@
-use crate::zod::Printer;
-use crate::{EnumVariant, EnumVariantFields, Field, InlineObject, Print, Ty};
+use crate::printer::{Print, Printer};
+use crate::types::object::InlineObject;
+use crate::types::ty::Ty;
+use crate::Field;
 use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct Union {
     pub ident: String,
-    pub variants: Vec<EnumVariant>,
+    pub variants: Vec<UnionVariant>,
+}
+
+#[derive(Debug)]
+pub struct UnionVariant {
+    pub ident: String,
+    pub fields: UnionVariantFields,
+}
+
+#[derive(Debug)]
+pub enum UnionVariantFields {
+    Unit,
+    Named(Vec<Field>),
+    Unnamed(Ty),
 }
 
 impl Print for Union {
@@ -15,15 +30,15 @@ impl Print for Union {
         printer.indent();
         for x in &self.variants {
             match &x.fields {
-                EnumVariantFields::Unit => {
+                UnionVariantFields::Unit => {
                     let as_lit = crate::Literal {
                         lit: x.ident.clone(),
                     };
                     printer.line(as_lit.as_string()?);
                 }
-                EnumVariantFields::Named(fields) => {
+                UnionVariantFields::Named(fields) => {
                     let object_key = x.ident.clone();
-                    let ident_obj = crate::Object {
+                    let ident_obj = crate::types::object::Object {
                         ident: object_key,
                         fields: vec![Field {
                             ident: x.ident.clone(),
@@ -34,9 +49,9 @@ impl Print for Union {
                     };
                     printer.line(&ident_obj.as_string()?);
                 }
-                EnumVariantFields::Unnamed(ty) => {
+                UnionVariantFields::Unnamed(ty) => {
                     let object_key = x.ident.clone();
-                    let as_obj = crate::Object {
+                    let as_obj = crate::types::object::Object {
                         ident: object_key,
                         fields: vec![Field {
                             ident: x.ident.clone(),
@@ -52,4 +67,50 @@ impl Print for Union {
         printer.write("])")?;
         write!(x, "{}", printer.dump())
     }
+}
+
+#[test]
+fn test_print_union() -> Result<(), std::fmt::Error> {
+    let t = Union {
+        ident: String::from("Count"),
+        variants: vec![
+            UnionVariant {
+                ident: "Two".into(),
+                fields: UnionVariantFields::Unnamed(Ty::ZodString),
+            },
+            UnionVariant {
+                ident: "TwoOther".into(),
+                fields: UnionVariantFields::Unit,
+            },
+            UnionVariant {
+                ident: "TwoOtherReally".into(),
+                fields: UnionVariantFields::Named(vec![Field {
+                    ident: "named_1".into(),
+                    ty: Ty::ZodNumber,
+                }]),
+            },
+            UnionVariant {
+                ident: "Three".into(),
+                fields: UnionVariantFields::Unnamed(Ty::Optional(Box::new(Ty::ZodString))),
+            },
+        ],
+    };
+    let expected = r#"z.union([
+  z.object({
+    Two: z.string(),
+  }),
+  z.literal("TwoOther"),
+  z.object({
+    TwoOtherReally: z.object({
+      named_1: z.number(),
+    }),
+  }),
+  z.object({
+    Three: z.string().optional(),
+  }),
+])"#;
+    // let litt = Item::Lit(Literal { lit: "Two".into() }).as_string()?;
+    let printed = t.as_string()?;
+    assert_eq!(expected, printed);
+    Ok(())
 }
