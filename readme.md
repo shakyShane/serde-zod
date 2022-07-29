@@ -23,7 +23,7 @@ Generate Zod definitions from your JSON-serializable types in Rust.
 | enum with "tagged" variants            | z.discriminatedUnion("tag", ...) |
 | enum with mixed variants               | z.union([...])                   |
 | String                                 | z.string()                       |
-| usize\|u8\|u16\|f32\|f64 etc (numbers) | z.number(123)                    |
+| usize\|u8\|u16\|f32\|f64 etc (numbers) | z.number()                    |
 | Option<String>                         | z.string().optional()            |
 | Struct/Enum fields                     | z.object({ ... })                |
 
@@ -47,6 +47,7 @@ With that, you can then create a binary application (alongside your lib, for exa
 ```rust
 fn main() {
     let lines = vec![
+        Person::print_imports(), // ⬅️ only needed once
         Person::codegen(),
     ];
     fs::write("./app/types.ts", lines.join("\n")).expect("hooray!");
@@ -55,13 +56,15 @@ fn main() {
 
 **output**
 ```ts
+import z from "zod"
+
 export const Person =
   z.object({
     age: z.number()
   })
 
 // ✅ usage
-const person = Person.parse({age: num})
+const person = Person.parse({age: 21})
 ```
 
 --- 
@@ -92,6 +95,8 @@ pub struct State {
 
 **output**
 ```ts
+import z from "zod"
+
 export const UnitOnlyEnum =
   z.enum([
     "Stop",
@@ -136,6 +141,8 @@ pub enum Control {
 **output**
 
 ```ts
+import z from "zod"
+
 export const Control =
   z.discriminatedUnion("kind", [
     z.object({
@@ -176,6 +183,8 @@ pub enum MixedEnum {
 
 **output**
 ```ts
+import z from "zod"
+
 export const MixedEnum =
   z.union([
     z.literal("One"),
