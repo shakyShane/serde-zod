@@ -9,14 +9,9 @@ edition = "2018"
 [lib]
 proc-macro = true
 
-[[bin]]
-name = "s2z"
-path = "src/bin.rs"
-
 [dependencies]
 quote = "1"
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
 serde = { version = "1.0.139", features = ["serde_derive"] }
 serde_json = "1.0.82"
-indenter = "0.2"
