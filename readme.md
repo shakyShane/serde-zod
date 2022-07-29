@@ -42,7 +42,7 @@ pub struct Person {
 }
 ```
 
-With that, you can then create a binary application (alongside your lib for example) thats only purpose is to output the zod definitions
+With that, you can then create a binary application (alongside your lib, for example) to output the zod definitions
 
 ```rust
 fn main() {
