@@ -6,7 +6,7 @@ Generate [`zod`](https://github.com/colinhacks/zod) definitions from your JSON-s
 
 This library was created whilst building a [Tauri](https://github.com/tauri-apps/tauri) App where the architecture encourages heavy use of JSON serializable messaging.
 
-Having the those message structures described in Rust structs/enums was fantastic, but losing the type information on the frontend was a shame - so I built this attribute macro to solve that problem 💪😎
+Having those message structures described in Rust structs/enums was fantastic, but losing the type information on the frontend was a shame - so I built this attribute macro to solve that problem 💪😎
 
 ## Features
 
