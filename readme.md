@@ -8,6 +8,16 @@ This library was created whilst building a [Tauri](https://github.com/tauri-apps
 
 Having those message structures described in Rust structs/enums was fantastic, but losing the type information on the frontend was a shame - so I built this attribute macro to solve that problem 💪😎
 
+## Install
+
+It's not on crates.io yet, it will be soon. 
+
+In the meantime if you want to try it out, you can reference the git repo in your `Cargo.toml`
+
+```toml
+serde_zod = { git = "https://github.com/shakyShane/serde-zod.git#main" }
+```
+
 ## Features
 
 - [x] structs -> `z.object()`
