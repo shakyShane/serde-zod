@@ -1,18 +1,24 @@
 # serde-zod
 
-Generate Zod definitions from your JSON-serializable types in Rust.
+Generate [`zod`](https://github.com/colinhacks/zod) definitions from your JSON-serializable types in Rust.
+
+## Why
+
+This library was created whilst building a [Tauri](https://github.com/tauri-apps/tauri) App where the architecture encourages heavy use of JSON serializable messaging.
+
+Having the those message structures described in Rust structs/enums was fantastic, but losing the type information on the frontend was a shame - so I built this attribute macro to solve that problem 💪😎
 
 ## Features
 
-- [x] structs 
+- [x] structs -> `z.object()`
 - [x] Optimized enum representation
   - [x] defer to `z.enum(["A", "B")` when a Rust enum contains only `unit` variants (no sub-fields)
   - [x] use `z.discriminatedUnion("tag", ...)` when attribute `serde(tag = "kind")` is used
   - [x] fall back to `z.union` if fields are mixed
 - [x] array subtype via `Vec<T>`
 - [x] optional types `Option<T>`
-- [ ] HashMap
-- [ ] Set
+- [ ] HashMap/BTreeMap
+- [ ] Set/BTreeSet
 - [ ] serde rename_all
 - [ ] serde rename_field
 - [ ] document all available output types
