@@ -2,5 +2,5 @@
 
 members = [
     "serde-zod",
-    "app"
+    "example"
 ]

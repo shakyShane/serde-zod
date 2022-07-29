@@ -33,7 +33,9 @@ Having the those message structures described in Rust structs/enums was fantasti
 | Option<String>                         | z.string().optional()            |
 | Struct/Enum fields                     | z.object({ ... })                |
 
-See the [tests](https://github.com/shakyShane/serde-zod/blob/main/app/src/main.rs) for more examples, or the [Typescript output](./app/types.ts) to see what it generates. 
+See the [tests](https://github.com/shakyShane/serde-zod/blob/main/app/src/main.rs) for more examples, or the [Typescript output](example/types.ts) to see what it generates.
+
+
 
 ## Basic Usage
 
