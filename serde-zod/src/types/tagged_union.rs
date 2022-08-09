@@ -1,6 +1,6 @@
 use crate::printer::Printer;
 use crate::union::{UnionVariant, UnionVariantFields};
-use crate::Print;
+use crate::{Context, Print};
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl TaggedUnion {
 }
 
 impl Print for TaggedUnion {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
         printer.writeln(format!(
             "z.discriminatedUnion({}, [",
@@ -43,7 +43,7 @@ impl Print for TaggedUnion {
                 UnionVariantFields::Unit => {}
                 UnionVariantFields::Named(fields) => {
                     for field in fields {
-                        printer.line(field.as_string()?);
+                        printer.line(field.as_string(ctx)?);
                     }
                 }
                 UnionVariantFields::Unnamed(_) => {

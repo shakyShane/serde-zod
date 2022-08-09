@@ -1,4 +1,5 @@
 use crate::printer::{Print, Printer};
+use crate::Context;
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct EnumUnitVariant {
 }
 
 impl Print for Enum {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, _ctx: &Context) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
         printer.writeln("z.enum([")?;
         printer.indent();

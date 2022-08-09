@@ -1,27 +1,25 @@
 use crate::printer::{Container, Printer};
-use crate::{Field, Print};
+use crate::types::field::Field;
+use crate::{Context, Print};
 use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct Object {
     pub ident: String,
     pub renamed: Option<String>,
-    pub fields: Vec<Field>,
-
-    // prevent creation without public method
-    _internal: Marker,
+    fields: Vec<Field>,
 }
 
 #[derive(Debug)]
 struct Marker;
 
+#[allow(dead_code)]
 impl Object {
     pub fn new(ident: impl Into<String>, fields: Vec<Field>) -> Self {
         Self {
             ident: ident.into(),
             renamed: None,
             fields,
-            _internal: Marker,
         }
     }
     pub fn new_renamed(
@@ -33,14 +31,16 @@ impl Object {
             ident: ident.into(),
             renamed,
             fields,
-            _internal: Marker,
         }
+    }
+    pub fn field(&mut self, field: impl Into<Field>) {
+        self.fields.push(field.into())
     }
 }
 
 impl Print for Object {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        print_obj(&self.fields, x)
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
+        print_obj(&self.fields, x, ctx)
     }
 }
 
@@ -56,17 +56,17 @@ pub struct InlineObject {
 }
 
 impl Print for InlineObject {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        print_obj(&self.fields, x)
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
+        print_obj(&self.fields, x, ctx)
     }
 }
 
-fn print_obj(fields: &[Field], target: &mut String) -> Result<(), std::fmt::Error> {
+fn print_obj(fields: &[Field], target: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
     let mut printer = Printer::new();
     printer.writeln("z.object({")?;
     printer.indent();
     for field in fields {
-        printer.line(field.as_string()?);
+        printer.line(field.as_string(ctx)?);
     }
     printer.join_lines(',')?;
     printer.dedent();

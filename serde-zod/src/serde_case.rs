@@ -13,6 +13,7 @@ use self::LocalRenameRule::*;
 #[derive(Copy, Clone, PartialEq)]
 pub enum LocalRenameRule {
     /// Don't apply a default rename rule.
+    #[allow(dead_code)]
     None,
     /// Rename direct children to "lowercase" style.
     LowerCase,
@@ -47,6 +48,7 @@ static LOCAL_RENAME_RULES: &[(&str, LocalRenameRule)] = &[
 ];
 
 impl LocalRenameRule {
+    #[allow(dead_code)]
     pub fn from_str(rename_all_str: &str) -> Result<Self, LocalParseError> {
         for (name, rule) in LOCAL_RENAME_RULES {
             if rename_all_str == *name {
@@ -59,6 +61,7 @@ impl LocalRenameRule {
     }
 
     /// Apply a renaming rule to an enum variant, returning the version expected in the source.
+    #[allow(dead_code)]
     pub fn local_apply_to_variant(&self, variant: &str) -> String {
         match *self {
             None | PascalCase => variant.to_owned(),
@@ -86,6 +89,7 @@ impl LocalRenameRule {
     }
 
     /// Apply a renaming rule to a struct field, returning the version expected in the source.
+    #[allow(dead_code)]
     pub fn local_apply_to_field(&self, field: &str) -> String {
         match *self {
             None | LowerCase | SnakeCase => field.to_owned(),

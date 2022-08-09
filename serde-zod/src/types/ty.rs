@@ -1,5 +1,5 @@
 use crate::types::object::InlineObject;
-use crate::Print;
+use crate::{Context, Print};
 use std::fmt::Formatter;
 use std::fmt::Write;
 
@@ -25,7 +25,8 @@ impl Ty {
 impl std::fmt::Display for Ty {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut as_zod = String::new();
-        self.print(&mut as_zod)?;
+        let ctx = Context::default();
+        self.print(&mut as_zod, &ctx)?;
         let named: String = match self {
             Ty::ZodNumber => "Ty::ZodNumber".to_string(),
             Ty::ZodString => "Ty::ZodString".to_string(),
@@ -44,17 +45,17 @@ impl std::fmt::Display for Ty {
 }
 
 impl Print for Ty {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         let res = match self {
             Ty::ZodNumber => "z.number()".to_string(),
             Ty::ZodString => "z.string()".to_string(),
             Ty::Reference(raw_ref) => raw_ref.to_string(),
-            Ty::Seq(inner) => format!("z.array({})", inner.as_string().expect("local type")),
+            Ty::Seq(inner) => format!("z.array({})", inner.as_string(ctx).expect("local type")),
             Ty::Optional(inner) => format!(
                 "{}.optional()",
-                inner.as_string().expect("local inner optional type")
+                inner.as_string(ctx).expect("local inner optional type")
             ),
-            Ty::InlineObject(fields) => fields.as_string()?,
+            Ty::InlineObject(fields) => fields.as_string(ctx)?,
         };
         write!(x, "{}", res)
     }

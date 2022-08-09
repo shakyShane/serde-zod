@@ -17,14 +17,14 @@ pub enum Statement {
 pub struct StatementList(pub Vec<Statement>);
 
 impl Print for Statement {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
         let (ident, inner) = match self {
-            Statement::Export(Item::TaggedUnion(tu)) => (&tu.ident, tu.as_string()?),
-            Statement::Export(Item::Object(ob)) => (ob.display_ident(), ob.as_string()?),
-            Statement::Export(Item::Enum(en)) => (&en.ident, en.as_string()?),
-            Statement::Export(Item::Lit(lit)) => (&lit.lit, lit.as_string()?),
-            Statement::Export(Item::Union(union)) => (&union.ident, union.as_string()?),
+            Statement::Export(Item::TaggedUnion(tu)) => (&tu.ident, tu.as_string(ctx)?),
+            Statement::Export(Item::Object(ob)) => (ob.display_ident(), ob.as_string(ctx)?),
+            Statement::Export(Item::Enum(en)) => (&en.ident, en.as_string(ctx)?),
+            Statement::Export(Item::Lit(lit)) => (&lit.lit, lit.as_string(ctx)?),
+            Statement::Export(Item::Union(union)) => (&union.ident, union.as_string(ctx)?),
         };
         printer.writeln(format!("export const {} =", ident))?;
         printer.indent();
@@ -35,6 +35,7 @@ impl Print for Statement {
 
 #[derive(Debug)]
 pub enum Item {
+    #[allow(dead_code)]
     Lit(Literal),
     Enum(Enum),
     Union(Union),
@@ -43,65 +44,36 @@ pub enum Item {
 }
 
 impl Print for Item {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         match self {
-            Item::Lit(lit) => lit.print(x),
-            Item::Enum(eenum) => eenum.print(x),
-            Item::TaggedUnion(tu) => tu.print(x),
-            Item::Object(obj) => obj.print(x),
-            Item::Union(uni) => uni.print(x),
+            Item::Lit(lit) => lit.print(x, ctx),
+            Item::Enum(eenum) => eenum.print(x, ctx),
+            Item::TaggedUnion(tu) => tu.print(x, ctx),
+            Item::Object(obj) => obj.print(x, ctx),
+            Item::Union(uni) => uni.print(x, ctx),
         }
     }
 }
 
+impl Print for Vec<Statement> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
+        for statement in self {
+            statement.print(x, ctx)?;
+        }
+        Ok(())
+    }
+}
 #[derive(Debug)]
 pub struct Program {
     pub imports: Vec<Import>,
     pub statements: Vec<Statement>,
 }
 
-impl Print for Vec<Statement> {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        for statement in self {
-            statement.print(x)?;
-        }
-        Ok(())
-    }
-}
-
 impl Print for Program {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        self.imports.print(x)?;
-        self.statements.print(x)?;
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
+        self.imports.print(x, ctx)?;
+        self.statements.print(x, ctx)?;
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Field {
-    pub ident: String,
-    pub ty: Ty,
-}
-
-impl Field {
-    pub fn new(ident: impl Into<String>, ty: Ty) -> Self {
-        Self {
-            ident: ident.into(),
-            ty,
-        }
-    }
-    pub fn from_syn_field(field: &syn::Field) -> Option<Self> {
-        match (&field.ident, as_ty(&field.ty).ok()) {
-            (Some(ident), Some(ty)) => Some(Self::new(ident.to_string(), ty)),
-            _ => None,
-        }
-    }
-}
-
-impl Print for Field {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
-        let ty_string = self.ty.as_string()?;
-        write!(x, "{}: {}", self.ident, ty_string)
     }
 }
 
@@ -111,7 +83,7 @@ pub struct Literal {
 }
 
 impl Print for Literal {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, _ctx: &Context) -> Result<(), std::fmt::Error> {
         write!(x, "z.literal({})", quote(&self.lit))
     }
 }

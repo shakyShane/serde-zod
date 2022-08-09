@@ -1,4 +1,4 @@
-use crate::Print;
+use crate::{Context, Print};
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -8,7 +8,7 @@ pub struct Import {
 }
 
 impl Print for Import {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, _ctx: &Context) -> Result<(), std::fmt::Error> {
         writeln!(
             x,
             "import {} from {};",
@@ -19,9 +19,9 @@ impl Print for Import {
 }
 
 impl Print for Vec<Import> {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         for import in self {
-            import.print(x)?;
+            import.print(x, ctx)?;
         }
         Ok(())
     }

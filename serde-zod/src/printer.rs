@@ -1,11 +1,24 @@
 use crate::indent::indent_all_by;
 use std::fmt::Write;
 
+#[derive(Debug, Default)]
+#[allow(dead_code)]
+pub enum OutputType {
+    #[default]
+    Serialize,
+    Deserialize,
+}
+
+#[derive(Debug, Default)]
+pub struct Context {
+    pub output_type: OutputType,
+}
+
 pub trait Print {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error>;
-    fn as_string(&self) -> Result<String, std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error>;
+    fn as_string(&self, ctx: &Context) -> Result<String, std::fmt::Error> {
         let mut s = String::new();
-        self.print(&mut s)?;
+        self.print(&mut s, ctx)?;
         Ok(s)
     }
 }

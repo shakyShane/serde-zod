@@ -7,14 +7,11 @@ mod zod;
 extern crate proc_macro;
 // use indenter;
 
-use crate::printer::Print;
+use crate::printer::{Context, Print};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use serde_json::json;
-use serde_name::trace_name;
-use serde_reflection::{ContainerFormat, Format, FormatHolder, Tracer, TracerConfig};
-use std::any::Any;
+
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -95,8 +92,12 @@ pub fn codegen(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut st = String::new();
     let mut im = String::new();
 
-    p.statements.print(&mut st).expect("printing statements");
-    p.imports.print(&mut im).expect("printing imports");
+    let ctx = Context::default();
+
+    p.statements
+        .print(&mut st, &ctx)
+        .expect("printing statements");
+    p.imports.print(&mut im, &ctx).expect("printing imports");
 
     let tokens = quote! {
         #input_parsed
@@ -119,12 +120,10 @@ fn process_struct(
 ) -> Result<Vec<Statement>, std::fmt::Error> {
     let mut ob = object::Object::new_renamed(ident.to_string(), None, Default::default());
     for field in &data_struct.fields {
-        let ty = as_ty(&field.ty).expect("ty");
+        let ty =
+            as_ty(&field.ty).expect("ty - can this fail? not sure if this needs to be handled");
         if let Some(ident) = &field.ident {
-            ob.fields.push(zod::Field {
-                ident: ident.to_string(),
-                ty,
-            })
+            ob.field((ident.to_string(), ty))
         }
     }
     let statements = vec![Statement::Export(Item::Object(ob))];
@@ -323,7 +322,6 @@ fn has_serde_derive(attrs: &[Attribute]) -> bool {
 }
 
 fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
-    println!("{}", raw_ident.as_ref());
     match raw_ident.as_ref() {
         "u8" | "u32" | "u64" | "usize" | "i8" | "i32" | "i64" | "isize" | "f32" | "f64" => {
             Ty::ZodNumber

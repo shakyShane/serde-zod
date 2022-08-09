@@ -14,6 +14,7 @@ use std::borrow::Cow;
 /// sequence that has already begun the line.
 ///
 /// For the version that also indents the first line, see [indent_all_by].
+#[allow(dead_code)]
 pub fn indent_by<'a, S>(number_of_spaces: usize, input: S) -> String
 where
     S: Into<Cow<'a, str>>,
@@ -26,6 +27,7 @@ where
 /// The first line of the string is not indented so that it can be placed after an introduction
 /// sequence that has already begun the line.
 /// For the version that also indents the first line, see [indent_all_with].
+#[allow(dead_code)]
 pub fn indent_with<'a, S, T>(prefix: S, input: T) -> String
 where
     S: Into<Cow<'a, str>>,
@@ -47,6 +49,7 @@ where
 /// Indents every line that is not empty with the given prefix.
 ///
 /// For the version that also indents the first line, see [indent_with].
+#[allow(dead_code)]
 pub fn indent_all_with<'a, S, T>(prefix: S, input: T) -> String
 where
     S: Into<Cow<'a, str>>,

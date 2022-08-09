@@ -1,8 +1,9 @@
 use crate::object::Object;
 use crate::printer::{Print, Printer};
+use crate::types::field::Field;
 use crate::types::object::InlineObject;
 use crate::types::ty::Ty;
-use crate::{as_ty, Field};
+use crate::{as_ty, Context};
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -62,7 +63,7 @@ pub enum UnionVariantFields {
 }
 
 impl Print for Union {
-    fn print(&self, x: &mut String) -> Result<(), std::fmt::Error> {
+    fn print(&self, x: &mut String, ctx: &Context) -> Result<(), std::fmt::Error> {
         let mut printer = Printer::new();
         printer.writeln("z.union([")?;
         printer.indent();
@@ -72,7 +73,7 @@ impl Print for Union {
                     let as_lit = crate::Literal {
                         lit: x.ident.clone(),
                     };
-                    printer.line(as_lit.as_string()?);
+                    printer.line(as_lit.as_string(ctx)?);
                 }
                 UnionVariantFields::Named(fields) => {
                     let object_key = x.ident.clone();
@@ -84,16 +85,17 @@ impl Print for Union {
                     }];
 
                     let ident_obj = Object::new_renamed(object_key, None, fields);
-                    printer.line(&ident_obj.as_string()?);
+                    printer.line(&ident_obj.as_string(ctx)?);
                 }
                 UnionVariantFields::Unnamed(ty) => {
                     let object_key = x.ident.clone();
-                    let fields = vec![Field {
-                        ident: x.ident.clone(),
-                        ty: ty.clone(),
-                    }];
-                    let as_obj = Object::new_renamed(object_key, None, fields);
-                    printer.line(&as_obj.as_string()?);
+                    // let fields = vec![Field {
+                    //     ident: x.ident.clone(),
+                    //     ty: ty.clone(),
+                    // }];
+                    let mut as_obj = Object::new_renamed(object_key, None, vec![]);
+                    as_obj.field((&x.ident, ty));
+                    printer.line(&as_obj.as_string(ctx)?);
                 }
             }
         }
@@ -145,7 +147,8 @@ fn test_print_union() -> Result<(), std::fmt::Error> {
   }),
 ])"#;
     // let litt = Item::Lit(Literal { lit: "Two".into() }).as_string()?;
-    let printed = t.as_string()?;
+    let ctx = Context::default();
+    let printed = t.as_string(&ctx)?;
     assert_eq!(expected, printed);
     Ok(())
 }
