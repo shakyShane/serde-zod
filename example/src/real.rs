@@ -1,5 +1,5 @@
 #[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind")]
 pub enum BlockingState {
     Blocked,
@@ -7,7 +7,7 @@ pub enum BlockingState {
 }
 
 #[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum AllowReason {
     ProtectionDisabled,
     OwnedByFirstParty,
@@ -17,7 +17,7 @@ pub enum AllowReason {
 }
 
 #[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DetectedRequest {
     url: String,
     state: BlockingState,

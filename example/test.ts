@@ -51,6 +51,24 @@ import parse from "date-fns/parseISO";
 // let parsed = sz.parse(["1", "2"]);
 // console.log(parsed);
 
-let obs = z.record(z.number());
-let incoming = { b: 3, a: 3 }
-obs.parse(incoming)
+let obs = {
+  serialize: z.object({
+    nums: z.set(z.number())
+  }),
+  deserialize: z.object({
+    nums: z.preprocess((nums) => new Set([...nums]), z.set(z.number())) }),
+}
+let from_rust = `{"nums": [1, 2, 3, 4]}`;
+let from_rust_parsed = obs.deserialize.parse(JSON.parse(from_rust));
+console.log(from_rust_parsed);
+
+let to_rust = new Set([1, 2, 3]);
+let can_send = obs.serialize.parse({nums: to_rust});
+console.log(JSON.stringify(can_send, (key, value) => {
+  console.log([key], this);
+  console.log(value instanceof Set);
+  if (typeof value === 'string') {
+    return undefined;
+  }
+  return value;
+}));

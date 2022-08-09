@@ -1,5 +1,6 @@
 mod indent;
 mod printer;
+mod serde_case;
 mod types;
 mod zod;
 
@@ -49,7 +50,7 @@ pub fn codegen(_attr: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    let impl_ident = input_parsed.ident.clone();
+    let container_ident = input_parsed.ident.clone();
 
     let statements: Result<StatementList, _> = match &input_parsed.data {
         Data::Struct(st) => StatementList::try_from((&input_parsed.ident, st)),
@@ -99,7 +100,7 @@ pub fn codegen(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let tokens = quote! {
         #input_parsed
-        impl #impl_ident {
+        impl #container_ident {
             pub fn codegen() -> String {
                 String::from(#st)
             }
@@ -284,7 +285,7 @@ fn serde_attrs(attrs: &[Attribute]) -> HashMap<String, String> {
                                 return Some((ident, str.value()));
                             }
                         }
-                        _ => todo!("?"),
+                        _ => todo!("parse more serde attrs"),
                     }
                 }
             }
@@ -329,87 +330,5 @@ fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
         }
         "String" => Ty::ZodString,
         ident => Ty::Reference(ident.to_string()),
-    }
-}
-
-#[test]
-fn test_chrome() {
-    use serde::{Deserialize, Serialize};
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct Foo {
-        g_uid: Bar,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    struct Bar(u64);
-
-    type MySet = std::collections::HashSet<usize>;
-
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename = "kittens", rename_all = "SCREAMING_SNAKE_CASE")]
-    enum Choice {
-        C(D),
-    }
-
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename = "DEE")]
-    enum D {
-        E,
-        F,
-    }
-
-    #[derive(Deserialize, Serialize)]
-    #[serde(rename = "Hello_world_bross", rename_all = "camelCase")]
-    struct WithChoice {
-        choice: Choice,
-        my_name: String,
-    }
-
-    let mut tracer = Tracer::new(TracerConfig::default());
-    let last_name = trace_enum::<Choice>(&mut tracer);
-    println!("container_name={last_name:?}");
-    let last_name = trace_enum::<D>(&mut tracer);
-    println!("container_name={last_name:?}");
-    let last_name = trace_enum::<WithChoice>(&mut tracer);
-    println!("container_name={last_name:?}");
-
-    // if let Ok(registry) = tracer.registry() {
-    //     dbg!(registry);
-    // } else {
-    //     eprintln!("Could not create registry for enum");
-    // }
-}
-
-fn trace_enum<'de, T>(tracer: &mut Tracer) -> Option<String>
-where
-    T: serde::Deserialize<'de>,
-{
-    let r = tracer.trace_simple_type::<T>();
-    if let Ok((Format::TypeName(tn), _)) = r {
-        Some(tn)
-    } else {
-        None
-    }
-}
-
-fn trace_struct<'de, T>()
-where
-    T: serde::Deserialize<'de>,
-{
-    let mut tracer = Tracer::new(TracerConfig::default());
-    let r = tracer.trace_simple_type::<T>();
-    let name = if let Ok((Format::TypeName(tn), _)) = r {
-        Some(tn)
-    } else {
-        None
-    };
-
-    dbg!(name);
-
-    if let Ok(registry) = tracer.registry() {
-        dbg!(registry);
-    } else {
-        eprintln!("Could not create registry for struct");
     }
 }

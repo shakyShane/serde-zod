@@ -25,7 +25,7 @@ fn main() {
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind")]
 pub enum Control {
     Start { time: u32 },
@@ -54,14 +54,14 @@ fn test_control() {
 }
 
 #[serde_zod::codegen]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum UnitOnlyEnum {
     Stop,
     Toggle,
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct State {
     control: UnitOnlyEnum,
 }
@@ -86,12 +86,21 @@ export const State =
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind")]
 pub enum Status {
-    Start { elapsed: u64, rem: u64 },
-    Tick { elapsed: u64, rem: u64 },
-    End { result: TimerResult },
+    Start {
+        elapsed: u64,
+        rem: u64,
+    },
+    Tick {
+        elapsed: u64,
+        rem: u64,
+    },
+    End {
+        #[serde(rename = "hello")]
+        result: TimerResult,
+    },
 }
 
 #[test]
@@ -119,7 +128,7 @@ fn test_status() {
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind")]
 pub enum TimerResult {
     Ended,
@@ -154,7 +163,7 @@ fn test_timer_result() {
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind")]
 pub enum Test {
     One,
@@ -178,7 +187,7 @@ fn test_test() {
 }
 
 #[serde_zod::codegen]
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum MixedEnum {
     One,
     Two(String),
