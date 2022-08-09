@@ -90,3 +90,7 @@ fn test_printer() -> Result<(), std::fmt::Error> {
     println!("|{}|", output);
     Ok(())
 }
+
+pub trait Container {
+    fn display_ident(&self) -> &String;
+}

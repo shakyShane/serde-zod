@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::printer::{Print, Printer};
+use crate::printer::{Container, Print, Printer};
 use crate::types::import::Import;
 use crate::types::object::Object;
 use crate::types::tagged_union::TaggedUnion;
@@ -21,7 +21,7 @@ impl Print for Statement {
         let mut printer = Printer::new();
         let (ident, inner) = match self {
             Statement::Export(Item::TaggedUnion(tu)) => (&tu.ident, tu.as_string()?),
-            Statement::Export(Item::Object(ob)) => (&ob.ident, ob.as_string()?),
+            Statement::Export(Item::Object(ob)) => (ob.display_ident(), ob.as_string()?),
             Statement::Export(Item::Enum(en)) => (&en.ident, en.as_string()?),
             Statement::Export(Item::Lit(lit)) => (&lit.lit, lit.as_string()?),
             Statement::Export(Item::Union(union)) => (&union.ident, union.as_string()?),

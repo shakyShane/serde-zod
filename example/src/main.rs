@@ -21,7 +21,7 @@ fn main() {
         UnitOnlyEnum::codegen(),
         State::codegen(),
     ];
-    fs::write("./app/types.ts", lines.join("\n")).expect("can write");
+    fs::write("./example/types.ts", lines.join("\n")).expect("can write");
 }
 
 #[serde_zod::codegen]

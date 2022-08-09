@@ -14,4 +14,7 @@ quote = "1"
 proc-macro2 = "1.0"
 syn = { version = "1.0", features = ["full"] }
 serde = { version = "1.0.139", features = ["serde_derive"] }
+serde_str = "0.1.0"
 serde_json = "1.0.82"
+serde-name = "0.2.1"
+serde-reflection = "0.3.6"

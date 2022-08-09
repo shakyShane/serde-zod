@@ -1,3 +1,4 @@
+use crate::object::Object;
 use crate::printer::{Print, Printer};
 use crate::types::object::InlineObject;
 use crate::types::ty::Ty;
@@ -75,26 +76,23 @@ impl Print for Union {
                 }
                 UnionVariantFields::Named(fields) => {
                     let object_key = x.ident.clone();
-                    let ident_obj = crate::types::object::Object {
-                        ident: object_key,
-                        fields: vec![Field {
-                            ident: x.ident.clone(),
-                            ty: Ty::InlineObject(InlineObject {
-                                fields: fields.clone(),
-                            }),
-                        }],
-                    };
+                    let fields = vec![Field {
+                        ident: x.ident.clone(),
+                        ty: Ty::InlineObject(InlineObject {
+                            fields: fields.clone(),
+                        }),
+                    }];
+
+                    let ident_obj = Object::new_renamed(object_key, None, fields);
                     printer.line(&ident_obj.as_string()?);
                 }
                 UnionVariantFields::Unnamed(ty) => {
                     let object_key = x.ident.clone();
-                    let as_obj = crate::types::object::Object {
-                        ident: object_key,
-                        fields: vec![Field {
-                            ident: x.ident.clone(),
-                            ty: ty.clone(),
-                        }],
-                    };
+                    let fields = vec![Field {
+                        ident: x.ident.clone(),
+                        ty: ty.clone(),
+                    }];
+                    let as_obj = Object::new_renamed(object_key, None, fields);
                     printer.line(&as_obj.as_string()?);
                 }
             }
