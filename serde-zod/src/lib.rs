@@ -244,7 +244,7 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
                         }
                     }
                     PathArguments::Parenthesized(_) => {
-                        println!("para")
+                        // println!("para")
                     }
                 }
             }
@@ -327,6 +327,7 @@ fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
             Ty::ZodNumber
         }
         "String" => Ty::ZodString,
+        "bool" => Ty::ZodBoolean,
         ident => Ty::Reference(ident.to_string()),
     }
 }

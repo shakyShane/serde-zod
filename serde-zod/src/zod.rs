@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashSet;
 
 use crate::printer::{Container, Print, Printer};
 use crate::types::import::Import;
@@ -86,4 +87,43 @@ impl Print for Literal {
     fn print(&self, x: &mut String, _ctx: &Context) -> Result<(), std::fmt::Error> {
         write!(x, "z.literal({})", quote(&self.lit))
     }
+}
+
+#[test]
+fn test_zod_union() {
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "lowercase")]
+    enum BlockingState {
+        Blocked {},
+        Allowed { reason: String },
+    }
+    #[derive(serde::Serialize)]
+    #[serde(rename_all = "lowercase")]
+    struct DetectedRequest {
+        state: BlockingState,
+    }
+
+    // let dt = DetectedRequest {
+    //     state: BlockingState::Allowed {
+    //         reason: String::from("haha"),
+    //     },
+    // };
+    // let dt2 = DetectedRequest {
+    //     state: BlockingState::Blocked {},
+    // };
+    // let json_1 = serde_json::to_string_pretty(&dt).expect("un");
+    // let json_2 = serde_json::to_string_pretty(&dt2).expect("un");
+    // println!("{}", json_1);
+    // println!("{}", json_2);
+
+    let mut s1 = HashSet::new();
+    s1.insert(1);
+    s1.insert(2);
+
+    let mut s2 = HashSet::new();
+    s2.insert(1);
+    s2.insert(2);
+
+    let s3: HashSet<&i32> = s1.intersection(&s2).collect();
+    println!("{:?}", s3);
 }

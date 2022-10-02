@@ -51,24 +51,35 @@ import parse from "date-fns/parseISO";
 // let parsed = sz.parse(["1", "2"]);
 // console.log(parsed);
 
-let obs = {
-  serialize: z.object({
-    nums: z.set(z.number())
-  }),
-  deserialize: z.object({
-    nums: z.preprocess((nums) => new Set([...nums]), z.set(z.number())) }),
-}
-let from_rust = `{"nums": [1, 2, 3, 4]}`;
-let from_rust_parsed = obs.deserialize.parse(JSON.parse(from_rust));
-console.log(from_rust_parsed);
-
-let to_rust = new Set([1, 2, 3]);
-let can_send = obs.serialize.parse({nums: to_rust});
-console.log(JSON.stringify(can_send, (key, value) => {
-  console.log([key], this);
-  console.log(value instanceof Set);
-  if (typeof value === 'string') {
-    return undefined;
+const json_1 = {
+  "state": {
+    "allowed": {
+      "reason": "abc"
+    }
   }
-  return value;
-}));
+}
+
+const json_2 = {
+  "state": {
+    "blocked": {}
+  }
+}
+
+const json_3 = {
+  "state": {
+    "blocked": {},
+    "allowed": {
+      "reason": "abcd"
+    }
+  }
+}
+
+const s1 = z.object({
+  state: z.union([
+    z.object({ allowed: z.object({ reason: z.string() }) }),
+    z.object({ blocked: z.object({}) }),
+  ])
+})
+
+let d = s1.parse(json_3);
+console.log(d);

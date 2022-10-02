@@ -7,6 +7,7 @@ use std::fmt::Write;
 pub enum Ty {
     ZodNumber,
     ZodString,
+    ZodBoolean,
     InlineObject(InlineObject),
     Reference(String),
     Seq(Box<Ty>),
@@ -38,6 +39,9 @@ impl std::fmt::Display for Ty {
                 format!("Ty::Optional({})", inner)
             }
             Ty::InlineObject(_) => "Ty::InlineObject(..)".to_string(),
+            Ty::ZodBoolean => {
+                format!("Ty::Boolean")
+            }
         };
         writeln!(f, "{}", named)?;
         writeln!(f, "\t{}", as_zod)
@@ -49,6 +53,7 @@ impl Print for Ty {
         let res = match self {
             Ty::ZodNumber => "z.number()".to_string(),
             Ty::ZodString => "z.string()".to_string(),
+            Ty::ZodBoolean => "z.boolean()".to_string(),
             Ty::Reference(raw_ref) => raw_ref.to_string(),
             Ty::Seq(inner) => format!("z.array({})", inner.as_string(ctx).expect("local type")),
             Ty::Optional(inner) => format!(
