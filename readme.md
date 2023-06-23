@@ -27,10 +27,12 @@ serde_zod = { git = "https://github.com/shakyShane/serde-zod.git#main" }
   - [x] fall back to `z.union` if fields are mixed
 - [x] array subtype via `Vec<T>`
 - [x] optional types `Option<T>`
-- [ ] HashMap/BTreeMap
+- [x] HashMap/BTreeMap
 - [ ] Set/BTreeSet
 - [ ] serde rename_all
 - [ ] serde rename_field
+  - [x] basic functionality
+  - [ ] independent names for serialization / deserialization
 - [ ] document all available output types
 
 | rust                                   | zod                              |
@@ -39,7 +41,8 @@ serde_zod = { git = "https://github.com/shakyShane/serde-zod.git#main" }
 | enum with "tagged" variants            | z.discriminatedUnion("tag", ...) |
 | enum with mixed variants               | z.union([...])                   |
 | String                                 | z.string()                       |
-| usize\|u8\|u16\|f32\|f64 etc (numbers) | z.number()                    |
+| usize\|u8\|u16\|f32\|f64 etc (numbers) | z.number()                       |
+| bool                                   | z.boolean()                      |
 | Option<String>                         | z.string().optional()            |
 | Struct/Enum fields                     | z.object({ ... })                |
 
