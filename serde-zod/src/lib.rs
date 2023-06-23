@@ -1,3 +1,4 @@
+mod get_serde_rename;
 mod indent;
 mod printer;
 mod types;
@@ -12,6 +13,7 @@ use proc_macro2::{Ident, Span};
 use quote::quote;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::ops::Index;
 
 use zod::*;
 
@@ -20,6 +22,7 @@ use crate::types::zod_enum::{Enum, EnumUnitVariant};
 use crate::union::UnionVariant;
 use crate::zod::Program;
 
+use crate::get_serde_rename::get_serde_rename;
 use syn::{
     parse_macro_input, Attribute, Data, DataEnum, DataStruct, DeriveInput, Error, Fields,
     GenericArgument, Meta, MetaNameValue, NestedMeta, PathArguments, Type,
@@ -119,10 +122,8 @@ fn process_struct(
     for field in &data_struct.fields {
         let ty = as_ty(&field.ty).expect("ty");
         if let Some(ident) = &field.ident {
-            ob.fields.push(zod::Field {
-                ident: ident.to_string(),
-                ty,
-            })
+            let name = get_serde_rename(&field.attrs).unwrap_or(ident.to_string());
+            ob.fields.push(zod::Field { ident: name, ty })
         }
     }
     let statements = vec![Statement::Export(Item::Object(ob))];
@@ -229,13 +230,21 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
                         let first_arg = o.args.first();
 
                         match (ident.as_str(), first_arg) {
-                            ("Vec" | "Option", Some(arg1)) => {
+                            ("Vec" | "Option" | "BTreeMap" | "HashMap", Some(arg1)) => {
                                 if let Ok(inner) = ty_from_generic_argument(arg1) {
                                     if ident == "Vec" {
                                         return Ok(Ty::seq(inner));
                                     }
                                     if ident == "Option" {
                                         return Ok(Ty::optional(inner));
+                                    }
+                                    if (ident == "BTreeMap" || ident == "HashMap")
+                                        && o.args.len() >= 2
+                                    {
+                                        let arg2 = o.args.index(1);
+                                        if let Ok(inner2) = ty_from_generic_argument(arg2) {
+                                            return Ok(Ty::record(inner, inner2));
+                                        }
                                     }
                                 }
                             }
@@ -249,6 +258,13 @@ fn as_ty(ty: &Type) -> Result<Ty, String> {
             }
 
             Err("could not get identifier".into())
+        }
+        Type::Tuple(t) if !t.elems.is_empty() => {
+            let mut types = Vec::with_capacity(t.elems.len());
+            for element in &t.elems {
+                types.push(as_ty(element)?);
+            }
+            Ok(Ty::Tuple(types))
         }
         _ => Err(String::from("unknown")),
     }
@@ -321,11 +337,11 @@ fn has_serde_derive(attrs: &[Attribute]) -> bool {
 }
 
 fn rust_ident_to_ty<A: AsRef<str>>(raw_ident: A) -> Ty {
-    println!("{}", raw_ident.as_ref());
+    // println!("{}", raw_ident.as_ref());
     match raw_ident.as_ref() {
-        "u8" | "u32" | "u64" | "usize" | "i8" | "i32" | "i64" | "isize" | "f32" | "f64" => {
-            Ty::ZodNumber
-        }
+        "u8" | "u16" | "u32" | "u64" | "usize" | "i8" | "i16" | "i32" | "i64" | "isize" | "f32"
+        | "f64" => Ty::ZodNumber,
+        "bool" => Ty::ZodBoolean,
         "String" => Ty::ZodString,
         ident => Ty::Reference(ident.to_string()),
     }
